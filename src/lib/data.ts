@@ -47,9 +47,31 @@ export async function getActiveItems(): Promise<ListItem[]> {
   ) as ListItem[];
 }
 
+/**
+ * Bekende prijzen per product per winkel: referentieprijzen (bonnen) plus lopende acties die
+ * aan een vast product gekoppeld zijn. Per product/winkel telt de laagste.
+ */
 export async function getKnownPrices(): Promise<KnownPrice[]> {
-  const rows = check(await db().from("product_prices").select("product_id, store_id, price"), "prijzen ophalen") as KnownPrice[];
-  return rows.map((r) => ({ ...r, price: Number(r.price) }));
+  const today = todayNL();
+  const [ref, offers] = await Promise.all([
+    db().from("product_prices").select("product_id, store_id, price"),
+    db()
+      .from("offers_cache")
+      .select("product_id, store_id, price")
+      .not("product_id", "is", null)
+      .not("price", "is", null)
+      .eq("status", "active")
+      .lte("valid_from", today)
+      .gte("valid_until", today),
+  ]);
+  const best = new Map<string, KnownPrice>();
+  for (const r of [...(check(ref, "prijzen") as KnownPrice[]), ...(check(offers, "acties") as KnownPrice[])]) {
+    const key = `${r.product_id}:${r.store_id}`;
+    const price = Number(r.price);
+    const cur = best.get(key);
+    if (!cur || price < cur.price) best.set(key, { product_id: r.product_id, store_id: r.store_id, price });
+  }
+  return [...best.values()];
 }
 
 export async function getShopper(day = todayNL()): Promise<PersonId | null> {

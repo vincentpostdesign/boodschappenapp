@@ -15,6 +15,7 @@
   --deal: #9a6a12;
   --deal-soft: #fbf0d9;
   --danger: #b4372f;
+  --chart: #13784a; /* gevalideerd tegen #ffffff */
 }
 
 @media (prefers-color-scheme: dark) {
@@ -33,6 +34,7 @@
     --deal: #e2b14f;
     --deal-soft: #3a2f17;
     --danger: #ef7d74;
+    --chart: #3f9e70; /* gevalideerd tegen #1b211e */
   }
 }
 
@@ -51,6 +53,7 @@
   --color-deal: var(--deal);
   --color-deal-soft: var(--deal-soft);
   --color-danger: var(--danger);
+  --color-chart: var(--chart);
   --font-sans: var(--font-geist-sans);
 }
 

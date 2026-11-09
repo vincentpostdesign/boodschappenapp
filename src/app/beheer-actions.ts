@@ -122,6 +122,21 @@ export async function saveProduct(_prev: ProductFormState, formData: FormData): 
   redirect("/beheer/producten");
 }
 
+/** Vanuit het dashboard: een vaak gekocht los product vast maken (afdeling later in Beheer). */
+export async function makeFixedProduct(name: string) {
+  await requirePerson();
+  const clean = name.trim().replace(/\s+/g, " ").slice(0, 80);
+  if (!clean) return;
+  const store = check(await db().from("stores").select("id").eq("is_default", true).maybeSingle(), "winkel") as { id: string } | null;
+  const row = check(
+    await db().from("products").insert({ name: clean, default_store_id: store?.id ?? null }).select("id").single(),
+    "vast product",
+  ) as { id: string };
+  // Losse lijstregels met dezelfde naam aan het nieuwe product koppelen
+  check(await db().from("list_items").update({ product_id: row.id }).is("product_id", null).ilike("name", clean), "lijst koppelen");
+  refresh();
+}
+
 export async function setProductHidden(id: string, hidden: boolean) {
   await requirePerson();
   check(await db().from("products").update({ hidden }).eq("id", id), "verbergen");
