@@ -4,7 +4,9 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { db, check } from "@/lib/db";
-import { isPersonId, requirePerson } from "@/lib/session";
+import { PEOPLE, isPersonId, requirePerson } from "@/lib/session";
+import { openItemCount, productenTekst, sendToPerson } from "@/lib/push";
+import { addDays, longDate, todayNL } from "@/lib/dates";
 
 function refresh() {
   revalidatePath("/", "layout");
@@ -16,7 +18,7 @@ const day = z.string().regex(/^\d{4}-\d{2}-\d{2}$/);
 
 /** person = null: niemand aangewezen voor die dag. */
 export async function setShopper(dayStr: string, person: string | null) {
-  await requirePerson();
+  const me = await requirePerson();
   const d = day.parse(dayStr);
   if (person === null) {
     check(await db().from("shopper_days").delete().eq("day", d), "boodschapper wissen");
@@ -31,6 +33,19 @@ export async function setShopper(dayStr: string, person: string | null) {
       await db().from("shopper_days").upsert({ day: d, person_id: person, notified_at: null, reminded_at: null }),
       "boodschapper opslaan",
     );
+    // Melding naar de aangewezen persoon (niet als je jezelf aanwijst).
+    if (person !== me) {
+      const today = todayNL();
+      const when = d === today ? "vandaag" : d === addDays(today, 1) ? "morgen" : longDate(d);
+      const n = await openItemCount();
+      await sendToPerson(person, {
+        title: `Jij doet ${when} de boodschappen`,
+        body: `${PEOPLE[me].name} heeft je aangewezen. Er staan nu ${productenTekst(n)} op de lijst.`,
+        url: "/",
+        tag: `aangewezen-${d}`,
+      });
+      check(await db().from("shopper_days").update({ notified_at: new Date().toISOString() }).eq("day", d), "gemeld");
+    }
   }
   refresh();
 }
