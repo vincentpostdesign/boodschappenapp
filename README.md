@@ -1,36 +1,94 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Boodschappen
 
-## Getting Started
+Gezamenlijke boodschappenlijst van Vincent en Marleen. Mobile-first webapp (PWA): Next.js 15 (App Router, TypeScript), Tailwind 4, Supabase (Postgres + Storage), later Vercel.
 
-First, run the development server:
+## Wat zit erin
+
+| Scherm | Functie |
+|---|---|
+| **Lijst** (`/`) | Producten in de looproute van de gekozen winkel, per afdeling. Afvinken, aantal, wie/wanneer, sectie Gehaald, icoon *goedkoper elders*. |
+| **Vast** (`/vast`) | Vaste producten met één tik op de lijst, *Zet alle erop*, zoeken. |
+| **Watchlist** (`/watchlist`) | Producten volgen op aanbiedingen (merk, prijsgrens, minimale korting), toevoegen met een foto (Claude leest de verpakking). |
+| **Bonnen** (`/bonnen`) | Bon fotograferen → foto meteen bewaard → Claude leest regels uit → controleren en opslaan. Leert bonnamen en Aldi-prijzen. |
+| **Dashboard** (`/dashboard`) | Uitgaven per winkel en per week/maand, vaak/soms gekocht, *vast maken*. |
+| **Beheer** (`/beheer`) | Wie doet wanneer de boodschappen, vaste producten, looproute per winkel, meldingen op dit apparaat. |
+
+Geen login: bij het eerste gebruik kies je *Ik ben Vincent/Marleen*; de telefoon onthoudt dat (cookie).
+
+## Lokaal starten
+
+Nodig: Node 20+ en Docker Desktop (draaiend).
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+npm install
+npx supabase start          # lokale Supabase in Docker; past migraties en seed toe
+cp .env.example .env.local  # vul de waarden in (zie hieronder)
+npm run dev                 # http://localhost:3000
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Startdata opnieuw zetten (wist alle lokale gegevens):
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```bash
+npx supabase db reset
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Supabase Studio (database bekijken): http://127.0.0.1:54323
 
-## Learn More
+Tests: `npm test` (sortering, koppelen van aanbiedingen, bonregels, dashboard, opruiming).
 
-To learn more about Next.js, take a look at the following resources:
+## Omgevingsvariabelen
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+| Variabele | Waar vandaan |
+|---|---|
+| `SUPABASE_URL` | Lokaal `http://127.0.0.1:54321`; live: Project Settings → API |
+| `SUPABASE_SERVICE_ROLE_KEY` | `npx supabase status` (lokaal) of Project Settings → API. **Alleen server-side.** |
+| `ANTHROPIC_API_KEY` | console.anthropic.com. Zonder sleutel werkt alles behalve het automatisch uitlezen van foto's. |
+| `ANTHROPIC_MODEL` | Standaard `claude-opus-5-5` |
+| `NEXT_PUBLIC_VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY` | `npx web-push generate-vapid-keys` |
+| `VAPID_SUBJECT` | `mailto:` met je e-mailadres |
+| `CRON_SECRET` | Willekeurige lange tekst; Vercel Cron stuurt die mee als `Authorization: Bearer …` |
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Geplande taken
 
-## Deploy on Vercel
+| Route | Wanneer | Wat |
+|---|---|---|
+| `/api/cron/opruimen` | 's nachts | Afgevinkte regels van eerdere dagen archiveren (niet wissen) |
+| `/api/cron/aanbiedingen` | 's ochtends vroeg | Alle acties ophalen (PrijsProfeet, ±3 min), koppelen, watchlist-meldingen |
+| `/api/cron/herinnering` | 8:00 (winter) / 9:00 (zomer) | Herinnering aan wie vandaag de boodschappen doet |
+| `/api/cron/koppelen` | handmatig | Opgeslagen acties opnieuw koppelen na wijzigingen in vaste producten |
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+Lokaal handmatig draaien:
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+```bash
+curl -H "Authorization: Bearer $CRON_SECRET" http://localhost:3000/api/cron/aanbiedingen
+```
+
+## Live gaan (stappenplan)
+
+1. **Nieuw Supabase-project** aanmaken (betaald plan, regio Frankfurt). Raak `pot-laden` en `verhuisapp` niet aan.
+2. Migraties toepassen:
+   ```bash
+   npx supabase link --project-ref <nieuw-project-ref>
+   npx supabase db push
+   ```
+   Startdata: draai `supabase/seed.sql` één keer in de SQL-editor van het nieuwe project.
+3. **Vercel**: repository koppelen, alle variabelen uit de tabel hierboven invullen (nieuwe `CRON_SECRET` en nieuwe VAPID-sleutels genereren).
+4. **Cron**: `vercel.json` bevat de drie taken (tijden in UTC). De aanbiedingen-taak duurt ±3 minuten; daarvoor is een functie-duur tot 300 s nodig (`maxDuration` staat in de route). Wil je de herinnering het hele jaar om 8:00, plan dan een uurlijkse taak (Pro-plan) of verschuif de tijd met de zomertijd.
+5. **Telefoons**: open de site, kies wie je bent. iPhone: Safari → Deelknop → *Zet op beginscherm*, open de app vanaf het beginscherm en zet in Beheer de meldingen aan (iOS 16.4+). Android: Chrome → *Toevoegen aan startscherm*.
+6. Controleer in Beheer → *Testmelding sturen* dat meldingen aankomen.
+
+## Opbouw
+
+```
+src/app/(app)/…         schermen (lijst, vast, watchlist, bonnen, dashboard, beheer)
+src/app/*-actions.ts    server actions (alle schrijfacties)
+src/app/api/…           foto-uploads, push, cron-routes
+src/lib/route.ts        sorteren in de looproute, productherkenning
+src/lib/prices/         prijsbron (interface + PrijsProfeet), koppelen, verversen, goedkoper elders
+src/lib/vision.ts       Claude: productfoto en bonnetje uitlezen
+src/lib/receipt.ts      bonregels opschonen en controleren
+supabase/migrations/    databaseschema (RLS aan, alleen server-toegang)
+public/sw.js            service worker (push, offline)
+```
+
+Zie `NOTES.md` voor beslissingen, de prijsdekking en open punten.

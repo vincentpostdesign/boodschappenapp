@@ -39,7 +39,37 @@ Conclusies:
 - **"Goedkoper elders"** kan alleen als er een Aldi-prijs (van een bon) én een lagere prijs elders bekend is. Zonder Aldi-prijs: geen icoon, niets verzinnen.
 - Optie voor later: Pro-plan voor echte schapprijzen. Eerst kijken hoe ver we komen met bonnen en acties.
 
+### Volledige ophaalrun (9 november 2026)
+
+`/products/promotional/all` per winkel: Aldi 267, Jumbo 2.614, Plus 2.344, AH 2.617, Lidl 42 acties. Door de bulk-limiet (30/min) duurt één run ±3 minuten.
+
+### Koppelen van acties aan vaste producten
+
+Eerste versie (alleen woorden) koppelde 186 acties, met veel fouten (babyhapjes bij bananen, Fanta Kiwi bij kiwi's, ravioli bij walnoten). Nu combineert de koppeling:
+1. **categorie** van de bron moet passen bij de afdelingen van het product (zuivel → `zuivel-eieren`/`kaas`, enz.);
+2. alle woorden van de **productnaam** en minstens één onderscheidend woord uit de **omschrijving**;
+3. een **woordfilter** voor samengestelde producten en smaakjes (ovenschotel, drink, baby, repen, vanille …), met de Nederlandse regel dat het laatste deel van een samenstelling bepaalt wat het is (drinkyoghurt = yoghurt, mueslireep = reep);
+4. hooguit 3 extra woorden naast merk en productwoorden.
+
+Resultaat: 45 koppelingen, bij steekproef allemaal juist. Liever een gemiste koppeling dan een verkeerde.
+
+**Let op bij "goedkoper elders":** de vergelijking is per verpakking, niet per liter/kilo (de bron geeft lang niet altijd een eenheidsprijs). Campina 1,5 L in de actie tegenover Aldi 2 L telt dus als "goedkoper". Het icoon is een hint, geen garantie. Verbetering voor later: inhoud uit de naam halen en per eenheid vergelijken.
+
+## Overige beslissingen tijdens het bouwen
+
+- **Claude-model**: `claude-opus-5-5`, effort `medium`, gestructureerde output (Zod-schema). Met `fallbacks: "default"`: weigert het model een foto onterecht, dan probeert de API het automatisch met een ander model.
+- **Foto's** worden op de server verkleind (max. 1600 px, JPEG) en in de privé-bucket `fotos` bewaard; tonen via tijdelijke links (1 uur).
+- **Bonnetjes**: de foto wordt altijd eerst opgeslagen, ook als uitlezen mislukt. Een bon blijft "nieuw" tot hij gecontroleerd is; pas dan telt hij mee in het dashboard en worden aliassen en referentieprijzen opgeslagen.
+- **Watchlist-meldingen**: per watchlist-product één melding per run (beste aanbieding + aantal andere), anders kreeg je de eerste dag tientallen meldingen. Melding gaat naar wie het product toevoegde; bij de startdata (geen toevoeger) naar allebei.
+- **Melding bij aanwijzen**: wie een ander aanwijst stuurt die persoon een melding; jezelf aanwijzen geeft geen melding.
+- **Herinnering** om 8:00 Nederlandse wintertijd (Vercel Cron rekent in UTC; zomertijd wordt 9:00).
+- **Opruiming** archiveert afgevinkte regels van vóór vandaag (Nederlandse tijd); niets wordt gewist.
+
 ## Open punten
 
-- Jumbo-looproute invullen na een bezoek aan de winkel.
-- Beslissen of Tim en Daan mogen meekijken.
+- [ ] Claude API-sleutel in `.env.local` zetten en het uitlezen testen met een echte foto van een product en een echte bon (alleen getest zonder sleutel: foto opslaan + handmatig invullen).
+- [ ] Pushmeldingen testen op een echte telefoon (de testomgeving blokkeert meldingen; de serverkant is getest).
+- [ ] Jumbo-looproute invullen na een bezoek aan de winkel.
+- [ ] Beslissen of Tim en Daan mogen meekijken.
+- [ ] "Goedkoper elders" per liter/kilo vergelijken.
+- [ ] Eventueel PrijsProfeet Pro voor schapprijzen (ook Aldi?), als bonnen niet genoeg dekking geven.
