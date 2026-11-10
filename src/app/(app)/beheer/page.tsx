@@ -10,7 +10,7 @@ import { Notifications } from "@/components/beheer/Notifications";
 import { ChangeCodeForm, SetCodeForForm } from "@/components/CodeForm";
 import { codeStatus, signOutDevice } from "@/app/toegang-actions";
 import { ProfilePhoto } from "@/components/beheer/ProfilePhoto";
-import { IconChart, IconDown, IconEye, IconStar } from "@/components/icons";
+import { IconChart, IconDown, IconEye, IconGift, IconStar } from "@/components/icons";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Beheer · Boodschappen" };
@@ -18,12 +18,13 @@ export const metadata = { title: "Beheer · Boodschappen" };
 export default async function BeheerPage() {
   const me = await requirePerson();
   const today = todayNL();
-  const [schedule, productCount, hiddenCount, stores, codes] = await Promise.all([
+  const [schedule, productCount, hiddenCount, stores, codes, giftCount] = await Promise.all([
     getWeekSchedule(),
     db().from("products").select("id", { count: "exact", head: true }).eq("hidden", false),
     db().from("products").select("id", { count: "exact", head: true }).eq("hidden", true),
     getStores(),
     codeStatus(),
+    db().from("gifts").select("id", { count: "exact", head: true }).eq("bought", false).or(`secret.eq.false,added_by.eq.${me}`),
   ]);
 
   return (
@@ -57,6 +58,12 @@ export default async function BeheerPage() {
             Icon={IconDown}
             title="Looproute per winkel"
             sub="Volgorde van de afdelingen"
+          />
+          <NavRow
+            href="/beheer/cadeaus"
+            Icon={IconGift}
+            title="Cadeaulijst"
+            sub={`Sint, kerst en verjaardagen${giftCount.count ? ` · ${giftCount.count} nog te kopen` : ""}`}
           />
           <NavRow href="/watchlist" Icon={IconEye} title="Watchlist" sub="Aanbiedingen in de gaten houden" />
           <NavRow href="/dashboard" Icon={IconChart} title="Dashboard" sub="Wat kopen we, wat geven we uit" />

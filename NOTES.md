@@ -69,6 +69,7 @@ Resultaat: 45 koppelingen, bij steekproef allemaal juist. Liever een gemiste kop
 - **Watchlist-meldingen**: per watchlist-product één melding per run (beste aanbieding + aantal andere), anders kreeg je de eerste dag tientallen meldingen. Melding gaat naar wie het product toevoegde; bij de startdata (geen toevoeger) naar allebei.
 - **Melding bij aanwijzen**: wie een ander aanwijst stuurt die persoon een melding; jezelf aanwijzen geeft geen melding.
 - **Herinneringen** om 8:00 en 15:00 Nederlandse tijd (de 15:00-melding alleen als er nog iets te halen is). Vercel rekent in UTC; de taken draaien op beide mogelijke uren en de route controleert het Nederlandse uur.
+- **Cadeaulijst** (Beheer → Cadeaulijst): per gelegenheid (Sint, kerst, verjaardag, overig), gegroepeerd per ontvanger, met prijs, link en notitie. "Geheim" maakt een cadeau alleen zichtbaar voor wie het toevoegde (verrassing voor de ander); de server haalt geheime cadeaus van de ander niet eens op. Opent automatisch op de eerstvolgende gelegenheid (t/m 5 dec Sint, t/m 26 dec kerst).
 - **Opruiming** archiveert afgevinkte regels van vóór vandaag (Nederlandse tijd); niets wordt gewist.
 
 ## Live-omgeving
