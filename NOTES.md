@@ -65,7 +65,17 @@ Resultaat: 45 koppelingen, bij steekproef allemaal juist. Liever een gemiste kop
 - **Herinnering** om 8:00 Nederlandse wintertijd (Vercel Cron rekent in UTC; zomertijd wordt 9:00).
 - **Opruiming** archiveert afgevinkte regels van vóór vandaag (Nederlandse tijd); niets wordt gewist.
 
+## Live-omgeving
+
+- **GitHub**: `vincentpostdesign/Boodschappenapp` (branch `main`, openbaar).
+- **Supabase**: project *Boodschappenapp* (ref `fvtlvgravofejdzhujeh`) in organisatie *Privé* (Free-plan), regio Europa. Aangemaakt op 10 november 2026, "nieuwe tabellen automatisch openstellen" uit.
+- Database opgezet met `supabase/live-setup.sql` via de SQL-editor (alle migraties + startdata). Gecontroleerd: 5 winkels, 60 afdelingen, 16 vaste producten, 4 watchlist-items, RLS op alle tabellen, geen publieke policies, bucket `fotos` privé, anonieme sleutel heeft geen leesrechten.
+- Let op: omdat de migraties via de SQL-editor zijn gedraaid, kent de Supabase-CLI ze nog niet. Wil je later `npx supabase db push` gebruiken, markeer ze dan eerst als toegepast: `npx supabase migration repair --status applied 20261109000000 20261109010000 20261109020000`.
+- Free-plan: het project gaat na een week zonder verkeer op pauze; de dagelijkse cron-taken op Vercel houden het actief.
+
 ## Open punten
+
+- [ ] Vercel: project koppelen aan de GitHub-repo en de omgevingsvariabelen invullen (service-role-sleutel van het nieuwe project: Project Settings → API).
 
 - [ ] Claude API-sleutel in `.env.local` zetten en het uitlezen testen met een echte foto van een product en een echte bon (alleen getest zonder sleutel: foto opslaan + handmatig invullen).
 - [ ] Pushmeldingen testen op een echte telefoon (de testomgeving blokkeert meldingen; de serverkant is getest).
