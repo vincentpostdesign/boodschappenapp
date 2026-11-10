@@ -1,6 +1,10 @@
+import { SlowLoading } from "@/components/SlowLoading";
+
 // Verschijnt direct bij het wisselen van scherm, terwijl de server de pagina maakt.
 export default function Loading() {
   return (
+    <>
+    <SlowLoading />
     <div className="animate-pulse space-y-5" aria-busy="true" aria-label="Laden">
       <div className="h-7 w-48 rounded-lg bg-surface-2" />
       <div className="h-12 rounded-2xl bg-surface-2" />
@@ -19,5 +23,6 @@ export default function Loading() {
         </div>
       ))}
     </div>
+    </>
   );
 }
