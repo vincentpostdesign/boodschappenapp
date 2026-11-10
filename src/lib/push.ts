@@ -9,6 +9,8 @@ export type PushPayload = {
   url?: string;
   tag?: string;
   actions?: { action: string; title: string }[];
+  /** Getal voor het rode bolletje op het app-icoon; standaard het aantal open producten op de lijst. */
+  count?: number;
 };
 
 let configured = false;
@@ -32,6 +34,8 @@ export async function sendToPerson(person: PersonId, payload: PushPayload): Prom
     await db().from("push_subscriptions").select("id, endpoint, p256dh, auth").eq("person_id", person),
     "abonnementen",
   ) as { id: string; endpoint: string; p256dh: string; auth: string }[];
+  if (!subs.length) return 0;
+  payload = { ...payload, count: payload.count ?? (await openItemCount()) };
 
   let sent = 0;
   await Promise.all(

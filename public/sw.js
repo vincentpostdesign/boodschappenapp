@@ -1,5 +1,5 @@
 // Service worker: pushmeldingen en een eenvoudige offline-terugval.
-const CACHE = "boodschappen-v3";
+const CACHE = "boodschappen-v4";
 const OFFLINE_URLS = ["/", "/manifest.webmanifest", "/icon-192.png"];
 
 self.addEventListener("install", (event) => {
@@ -39,15 +39,24 @@ self.addEventListener("push", (event) => {
     data = { body: event.data ? event.data.text() : "" };
   }
   const title = data.title || "Boodschappen";
+  // Rood bolletje op het app-icoon (iOS 16.4+ en Android), zodat een gemiste melding zichtbaar blijft.
+  const badge =
+    "setAppBadge" in self.navigator
+      ? (typeof data.count === "number" && data.count > 0 ? self.navigator.setAppBadge(data.count) : self.navigator.setAppBadge()).catch(() => {})
+      : Promise.resolve();
   event.waitUntil(
-    self.registration.showNotification(title, {
-      body: data.body || "",
-      icon: "/icon-192.png",
-      badge: "/icon-192.png",
-      tag: data.tag,
-      data: { url: data.url || "/" },
-      actions: data.actions || [],
-    }),
+    Promise.all([
+      badge,
+      self.registration.showNotification(title, {
+        body: data.body || "",
+        icon: "/icon-192.png",
+        badge: "/icon-192.png",
+        tag: data.tag,
+        timestamp: Date.now(),
+        data: { url: data.url || "/" },
+        actions: data.actions || [],
+      }),
+    ]),
   );
 });
 
