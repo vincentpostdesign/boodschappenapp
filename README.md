@@ -54,7 +54,8 @@ Tests: `npm test` (sortering, koppelen van aanbiedingen, bonregels, dashboard, o
 |---|---|---|
 | `/api/cron/opruimen` | 's nachts | Afgevinkte regels van eerdere dagen archiveren (niet wissen) |
 | `/api/cron/aanbiedingen` | 's ochtends vroeg | Alle acties ophalen (PrijsProfeet, ±3 min), koppelen, watchlist-meldingen |
-| `/api/cron/herinnering` | 8:00 (winter) / 9:00 (zomer) | Herinnering aan wie vandaag de boodschappen doet |
+| `/api/cron/herinnering?moment=ochtend` | 8:00 (NL-tijd) | Herinnering aan wie volgens het weekrooster vandaag de boodschappen doet |
+| `/api/cron/herinnering?moment=middag` | 15:00 (NL-tijd) | Nog een keer, alleen als er nog iets op de lijst staat |
 | `/api/cron/koppelen` | handmatig | Opgeslagen acties opnieuw koppelen na wijzigingen in vaste producten |
 
 Lokaal handmatig draaien:
@@ -73,7 +74,7 @@ curl -H "Authorization: Bearer $CRON_SECRET" http://localhost:3000/api/cron/aanb
    ```
    Startdata: draai `supabase/seed.sql` één keer in de SQL-editor van het nieuwe project.
 3. **Vercel**: repository koppelen, alle variabelen uit de tabel hierboven invullen (nieuwe `CRON_SECRET` en nieuwe VAPID-sleutels genereren).
-4. **Cron**: `vercel.json` bevat de drie taken (tijden in UTC). De aanbiedingen-taak duurt ±3 minuten; daarvoor is een functie-duur tot 300 s nodig (`maxDuration` staat in de route). Wil je de herinnering het hele jaar om 8:00, plan dan een uurlijkse taak (Pro-plan) of verschuif de tijd met de zomertijd.
+4. **Cron**: `vercel.json` bevat de taken (Vercel rekent in UTC). De herinneringen draaien op beide mogelijke UTC-uren en controleren zelf of het 8:00 of 15:00 Nederlandse tijd is, dus zomer- en wintertijd kloppen vanzelf. Handmatig testen: `?nu=1`. De aanbiedingen-taak duurt ±3 minuten (`maxDuration` 300 s).
 5. **Telefoons**: open de site, kies wie je bent. iPhone: Safari → Deelknop → *Zet op beginscherm*, open de app vanaf het beginscherm en zet in Beheer de meldingen aan (iOS 16.4+). Android: Chrome → *Toevoegen aan startscherm*.
 6. Controleer in Beheer → *Testmelding sturen* dat meldingen aankomen.
 

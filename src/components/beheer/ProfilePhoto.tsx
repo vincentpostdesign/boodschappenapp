@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { PersonDot } from "../PersonDot";
-import { useAvatarUrl } from "../Avatars";
+import { useHasAvatar } from "../Avatars";
 import type { PersonId } from "@/lib/types";
 
 const V = 280; // voorbeeldgrootte van de uitsnede
@@ -31,7 +31,7 @@ async function loadPhoto(file: File): Promise<HTMLCanvasElement> {
 /** Profielfoto kiezen, uitsnijden (rondje) en opslaan — zoals in pot-laden. */
 export function ProfilePhoto({ me, name }: { me: PersonId; name: string }) {
   const router = useRouter();
-  const hasPhoto = Boolean(useAvatarUrl(me));
+  const hasPhoto = useHasAvatar(me);
   const picker = useRef<HTMLInputElement>(null);
   const [bitmap, setBitmap] = useState<HTMLCanvasElement | null>(null);
   const [busy, setBusy] = useState(false);

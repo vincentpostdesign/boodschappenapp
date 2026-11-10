@@ -4,7 +4,7 @@
 
 - **Database lokaal**: Supabase CLI met Docker Desktop (`npx supabase start`). Migraties in `supabase/migrations`, startdata in `supabase/seed.sql`.
 - **Persoonlijke codes** (10 november 2026): ieder een eigen code (`settings.toegangscode_vincent` / `_marleen`, scrypt-hash; de eerste gezinscode telt als die van Vincent). Wie zijn code invult is meteen herkend: cookie `toegang` (HMAC, 400 dagen) + `persoon`. Zonder toegang is niets bereikbaar (pagina's én API, behalve de cron-routes met hun eigen geheim). Na 5 foute pogingen per IP 15 minuten blokkade (`access_attempts`). In Beheer: eigen code wijzigen, eerste code voor een ander instellen, telefoon afmelden. Een browser kan geen MAC-adres uitlezen; de persoonlijke code is daarom de manier om iemand te herkennen.
-- **Profielfoto** (zoals pot-laden): kiezen, rond uitsnijden in de app, opgeslagen als 512×512 JPEG in bucket `fotos/personen/`, getoond via `/api/foto/persoon/<id>?v=…` (alleen met toegang). Zonder foto de initiaal.
+- **Profielfoto** (zoals pot-laden): kiezen, rond uitsnijden in de app, opgeslagen als 512×512 JPEG in bucket `fotos/personen/`. Getoond als kleine ingebedde afbeelding (192 px, één keer per pagina als stijl): het losse fotobestand kwam in de iPhone-webapp half binnen. Zonder foto de initiaal.
 - **Weekrooster** (10 november 2026): wie de boodschappen doet staat per weekdag in `settings.weekrooster` (7 plaatsen, maandag = 0) en geldt elke week. Bij het eerste gebruik overgenomen uit de losse datums. `shopper_days` is nu alleen nog het logboek van de ochtendherinnering.
 - **Lijst**: veeg naar links voor Verwijderen (ver doorvegen verwijdert direct); − / + direct in de regel.
 - **Beheer → App verversen**: servercache vernieuwen, app-cache op de telefoon legen, nieuwste versie laden.
@@ -67,7 +67,7 @@ Resultaat: 45 koppelingen, bij steekproef allemaal juist. Liever een gemiste kop
 - **Bonnetjes**: de foto wordt altijd eerst opgeslagen, ook als uitlezen mislukt. Een bon blijft "nieuw" tot hij gecontroleerd is; pas dan telt hij mee in het dashboard en worden aliassen en referentieprijzen opgeslagen.
 - **Watchlist-meldingen**: per watchlist-product één melding per run (beste aanbieding + aantal andere), anders kreeg je de eerste dag tientallen meldingen. Melding gaat naar wie het product toevoegde; bij de startdata (geen toevoeger) naar allebei.
 - **Melding bij aanwijzen**: wie een ander aanwijst stuurt die persoon een melding; jezelf aanwijzen geeft geen melding.
-- **Herinnering** om 8:00 Nederlandse wintertijd (Vercel Cron rekent in UTC; zomertijd wordt 9:00).
+- **Herinneringen** om 8:00 en 15:00 Nederlandse tijd (de 15:00-melding alleen als er nog iets te halen is). Vercel rekent in UTC; de taken draaien op beide mogelijke uren en de route controleert het Nederlandse uur.
 - **Opruiming** archiveert afgevinkte regels van vóór vandaag (Nederlandse tijd); niets wordt gewist.
 
 ## Live-omgeving

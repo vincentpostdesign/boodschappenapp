@@ -4,6 +4,7 @@
   "crons": [
     { "path": "/api/cron/opruimen", "schedule": "0 2 * * *" },
     { "path": "/api/cron/aanbiedingen", "schedule": "0 5 * * *" },
-    { "path": "/api/cron/herinnering", "schedule": "0 7 * * *" }
+    { "path": "/api/cron/herinnering?moment=ochtend", "schedule": "0 6,7 * * *" },
+    { "path": "/api/cron/herinnering?moment=middag", "schedule": "0 13,14 * * *" }
   ]
 }
