@@ -15,7 +15,9 @@ export default async function VastPage() {
     getProductDepartments(store.id),
     getActiveItems(),
   ]);
-  const onList = new Set(items.filter((i) => !i.checked && i.product_id).map((i) => i.product_id!));
+  // Aantal per product op de lijst (nog niet afgevinkt); 0 = staat er niet op.
+  const onList = new Map<string, number>();
+  for (const i of items) if (!i.checked && i.product_id) onList.set(i.product_id, (onList.get(i.product_id) ?? 0) + i.quantity);
   const groups = groupByRoute(products, departments, (p) => mapping.get(p.id)).map((g) => ({
     key: g.departmentId ?? "overig",
     name: g.name,
@@ -24,7 +26,7 @@ export default async function VastPage() {
       name: p.name,
       description: p.description,
       quantity: p.default_quantity,
-      onList: onList.has(p.id),
+      onList: onList.get(p.id) ?? 0,
     })),
   }));
 

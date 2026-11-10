@@ -85,6 +85,31 @@ export async function addProducts(productIds: string[]) {
   refresh();
 }
 
+/**
+ * Aantal van een vast product op de lijst direct zetten (vanuit Vast).
+ * 0 = van de lijst halen; anders bijwerken of toevoegen. Werkt op de nog niet afgevinkte regel.
+ */
+export async function setProductQuantity(productId: string, quantity: number) {
+  const person = await requirePerson();
+  const q = Math.max(0, Math.min(99, Math.round(quantity)));
+  const existing = check(
+    await db().from("list_items").select("id").eq("product_id", productId).eq("archived", false).eq("checked", false).limit(1).maybeSingle(),
+    "lijst",
+  ) as { id: string } | null;
+  if (q === 0) {
+    if (existing) check(await db().from("list_items").delete().eq("id", existing.id), "verwijderen");
+  } else if (existing) {
+    check(await db().from("list_items").update({ quantity: q }).eq("id", existing.id), "aantal");
+  } else {
+    const p = check(await db().from("products").select("name, description").eq("id", productId).single(), "product") as {
+      name: string;
+      description: string | null;
+    };
+    check(await db().from("list_items").insert({ product_id: productId, name: p.name, description: p.description, quantity: q, added_by: person }), "toevoegen");
+  }
+  refresh();
+}
+
 export async function addAllFixedProducts() {
   await requirePerson();
   const ids = check(await db().from("products").select("id").eq("hidden", false), "producten") as { id: string }[];

@@ -3,7 +3,8 @@
 import { useOptimistic, useRef, useState, useTransition } from "react";
 import { addFreeItem, removeItem, setChecked, setQuantity } from "@/app/actions";
 import { PersonDot } from "./PersonDot";
-import { IconCheck, IconMinus, IconPlus, IconTag, IconTrash } from "./icons";
+import { IconCheck, IconPlus, IconTag, IconTrash } from "./icons";
+import { Stepper } from "./Stepper";
 import type { PersonId } from "@/lib/types";
 
 export type ViewItem = {
@@ -116,9 +117,15 @@ function Row({
   onToggle: () => void;
 }) {
   const [, start] = useTransition();
+  const [qty, setQty] = useOptimistic(item.quantity);
+  const changeQty = (n: number) =>
+    start(async () => {
+      setQty(n);
+      await setQuantity(item.id, n);
+    });
   return (
     <li>
-      <div className="flex min-h-16 items-center gap-3 pl-2 pr-3">
+      <div className="flex min-h-16 items-center gap-2 pl-2 pr-2">
         <button
           onClick={onToggle}
           aria-label={checked ? `${item.name} terugzetten` : `${item.name} afvinken`}
@@ -132,49 +139,34 @@ function Row({
             {checked && <IconCheck className="h-5 w-5" />}
           </span>
         </button>
-        <button onClick={onExpand} disabled={checked} className="min-w-0 flex-1 py-2 text-left">
+        <button onClick={onExpand} disabled={checked} className="min-w-0 flex-1 py-2 text-left" aria-expanded={expanded}>
           <span className={`block text-[17px] font-medium leading-tight ${checked ? "text-muted line-through" : ""}`}>
-            {item.quantity > 1 && <span className="mr-1.5 font-semibold text-accent">{item.quantity}×</span>}
+            {checked && qty > 1 && <span className="mr-1.5 font-semibold">{qty}×</span>}
             {item.name}
           </span>
           {item.description && <span className="block truncate text-sm text-muted">{item.description}</span>}
-          {item.cheaper && !checked && (
-            <span className="mt-1 inline-flex items-center gap-1 rounded-md bg-deal-soft px-1.5 py-0.5 text-xs font-semibold text-deal">
-              <IconTag className="h-3.5 w-3.5" />
-              {item.cheaper.storeName} {euroDiff(item.cheaper.difference)}
+          <span className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1">
+            <span className="inline-flex items-center gap-1.5 text-[11px] text-muted">
+              <PersonDot person={item.addedBy} />
+              {item.addedOn}
             </span>
-          )}
+            {item.cheaper && !checked && (
+              <span className="inline-flex items-center gap-1 rounded-md bg-deal-soft px-1.5 py-0.5 text-xs font-semibold text-deal">
+                <IconTag className="h-3.5 w-3.5" />
+                {item.cheaper.storeName} {euroDiff(item.cheaper.difference)}
+              </span>
+            )}
+          </span>
         </button>
-        <div className="flex shrink-0 flex-col items-end gap-1">
-          <PersonDot person={item.addedBy} />
-          <span className="text-[11px] text-muted">{item.addedOn}</span>
-        </div>
+        {!checked && <Stepper value={qty} label={item.name} onChange={changeQty} />}
       </div>
       {expanded && (
-        <div className="flex items-center gap-2 border-t border-line bg-surface-2/60 px-3 py-2">
-          <span className="mr-auto text-sm text-muted">Aantal</span>
+        <div className="flex items-center justify-end gap-2 border-t border-line bg-surface-2/60 px-3 py-2">
           <button
-            aria-label="Minder"
-            disabled={item.quantity <= 1}
-            onClick={() => start(() => setQuantity(item.id, item.quantity - 1))}
-            className="flex h-11 w-11 items-center justify-center rounded-xl border border-line bg-surface disabled:opacity-40"
-          >
-            <IconMinus className="h-5 w-5" />
-          </button>
-          <span className="w-8 text-center text-lg font-semibold tabular-nums">{item.quantity}</span>
-          <button
-            aria-label="Meer"
-            onClick={() => start(() => setQuantity(item.id, item.quantity + 1))}
-            className="flex h-11 w-11 items-center justify-center rounded-xl border border-line bg-surface"
-          >
-            <IconPlus className="h-5 w-5" />
-          </button>
-          <button
-            aria-label={`${item.name} verwijderen`}
             onClick={() => start(() => removeItem(item.id))}
-            className="ml-2 flex h-11 w-11 items-center justify-center rounded-xl text-danger"
+            className="flex h-11 items-center gap-2 rounded-xl px-3 text-sm font-medium text-danger"
           >
-            <IconTrash className="h-5 w-5" />
+            <IconTrash className="h-5 w-5" /> Van de lijst halen
           </button>
         </div>
       )}

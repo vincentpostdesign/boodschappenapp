@@ -1,17 +1,20 @@
 "use client";
 
 import { useMemo, useOptimistic, useState, useTransition } from "react";
-import { addAllFixedProducts, addProducts } from "@/app/actions";
+import { addAllFixedProducts, setProductQuantity } from "@/app/actions";
 import { normalize } from "@/lib/route";
-import { IconCheck, IconPlus, IconSearch } from "./icons";
+import { IconPlus, IconSearch } from "./icons";
+import { Stepper } from "./Stepper";
 
-type P = { id: string; name: string; description: string | null; quantity: number; onList: boolean };
+/** onList = aantal op de lijst (0 = staat er niet op). */
+type P = { id: string; name: string; description: string | null; quantity: number; onList: number };
 type Group = { key: string; name: string; products: P[] };
 
 export function FixedProducts({ groups, storeName }: { groups: Group[]; storeName: string }) {
   const [query, setQuery] = useState("");
   const [, start] = useTransition();
-  const [added, markAdded] = useOptimistic(new Set<string>(), (s, ids: string[]) => new Set([...s, ...ids]));
+  // Optimistisch: aantallen direct tonen, de server volgt.
+  const [counts, setCount] = useOptimistic(new Map<string, number>(), (m, [id, n]: [string, number]) => new Map(m).set(id, n));
 
   const filtered = useMemo(() => {
     const q = normalize(query);
@@ -22,13 +25,13 @@ export function FixedProducts({ groups, storeName }: { groups: Group[]; storeNam
   }, [groups, query]);
 
   const all = groups.flatMap((g) => g.products);
-  const isOn = (p: P) => p.onList || added.has(p.id);
-  const remaining = all.filter((p) => !isOn(p));
+  const countOf = (p: P) => counts.get(p.id) ?? p.onList;
+  const remaining = all.filter((p) => countOf(p) === 0);
 
-  const add = (ids: string[]) =>
+  const change = (p: P, n: number) =>
     start(async () => {
-      markAdded(ids);
-      await addProducts(ids);
+      setCount([p.id, n]);
+      await setProductQuantity(p.id, n);
     });
 
   return (
@@ -49,7 +52,7 @@ export function FixedProducts({ groups, storeName }: { groups: Group[]; storeNam
           disabled={remaining.length === 0}
           onClick={() =>
             start(async () => {
-              markAdded(remaining.map((p) => p.id));
+              for (const p of remaining) setCount([p.id, p.quantity]);
               await addAllFixedProducts();
             })
           }
@@ -57,7 +60,9 @@ export function FixedProducts({ groups, storeName }: { groups: Group[]; storeNam
         >
           {remaining.length === 0 ? "Alle vaste producten staan op de lijst" : `Zet alle vaste producten erop (${remaining.length})`}
         </button>
-        <p className="px-1 text-xs text-muted">Ingedeeld volgens de looproute van de {storeName}.</p>
+        <p className="px-1 text-xs text-muted">
+          Ingedeeld volgens de looproute van de {storeName}. Met + zet je iets op de lijst; tik nog eens voor meer.
+        </p>
       </header>
 
       {filtered.length === 0 && <p className="py-8 text-center text-muted">Niets gevonden voor “{query}”.</p>}
@@ -68,28 +73,28 @@ export function FixedProducts({ groups, storeName }: { groups: Group[]; storeNam
             <h2 className="mb-2 px-1 text-xs font-bold uppercase tracking-wider text-muted">{g.name}</h2>
             <ul className="divide-y divide-line overflow-hidden rounded-2xl border border-line bg-surface">
               {g.products.map((p) => {
-                const on = isOn(p);
+                const n = countOf(p);
                 return (
-                  <li key={p.id}>
-                    <button
-                      disabled={on}
-                      onClick={() => add([p.id])}
-                      className="flex min-h-16 w-full items-center gap-3 px-4 py-2 text-left"
-                    >
-                      <span className="min-w-0 flex-1">
-                        <span className="block text-[17px] font-medium leading-tight">{p.name}</span>
-                        {p.description && <span className="block truncate text-sm text-muted">{p.description}</span>}
+                  <li key={p.id} className={`flex min-h-16 items-center gap-3 px-4 py-2 ${n ? "bg-accent-soft/50" : ""}`}>
+                    <span className="min-w-0 flex-1">
+                      <span className="block text-[17px] font-medium leading-tight">{p.name}</span>
+                      <span className="block truncate text-sm text-muted">
+                        {n ? <span className="font-medium text-accent">Op de lijst</span> : p.description}
+                        {n && p.description ? ` · ${p.description}` : ""}
                       </span>
-                      {on ? (
-                        <span className="inline-flex shrink-0 items-center gap-1 whitespace-nowrap rounded-full bg-accent-soft px-3 py-1.5 text-xs font-semibold text-accent">
-                          <IconCheck className="h-3.5 w-3.5" /> Op de lijst
-                        </span>
-                      ) : (
-                        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-line text-accent">
-                          <IconPlus className="h-5 w-5" />
-                        </span>
-                      )}
-                    </button>
+                    </span>
+                    {n ? (
+                      <Stepper value={n} min={0} label={p.name} onChange={(next) => change(p, next)} />
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => change(p, p.quantity)}
+                        aria-label={`${p.name} op de lijst zetten`}
+                        className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-line text-accent"
+                      >
+                        <IconPlus className="h-5 w-5" />
+                      </button>
+                    )}
                   </li>
                 );
               })}
