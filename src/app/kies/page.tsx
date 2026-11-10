@@ -1,5 +1,5 @@
 import { choosePerson } from "../actions";
-import { hasAccess, isCodeSet } from "../toegang-actions";
+import { codeStatus, hasAccess } from "../toegang-actions";
 import { CodeForm } from "@/components/CodeForm";
 
 export const dynamic = "force-dynamic";
@@ -8,16 +8,17 @@ export const metadata = { title: "Welkom · Boodschappen" };
 export default async function KiesPage() {
   const access = await hasAccess();
   if (!access) {
-    const codeSet = await isCodeSet();
+    const s = await codeStatus();
+    const codeSet = s.vincent || s.marleen;
     return (
       <main className="mx-auto flex min-h-dvh max-w-md flex-col justify-center gap-8 px-6 py-10">
         <div>
           <p className="text-sm font-medium text-accent">Boodschappen</p>
-          <h1 className="mt-1 text-3xl font-semibold tracking-tight">{codeSet ? "Gezinscode" : "Kies een gezinscode"}</h1>
+          <h1 className="mt-1 text-3xl font-semibold tracking-tight">{codeSet ? "Inloggen" : "Kies je code"}</h1>
           <p className="mt-2 text-muted">
             {codeSet
-              ? "Vul de gezinscode in. Deze telefoon onthoudt hem, je hoeft dit maar één keer te doen."
-              : "Met deze code komt alleen het gezin in de app. Kies 6 of meer cijfers en geef hem door aan wie mee mag doen."}
+              ? "Vul je eigen code in. De app weet dan wie je bent en deze telefoon onthoudt het."
+              : "Ieder krijgt een eigen code; daaraan herkent de app wie je bent. Kies 6 of meer cijfers."}
           </p>
         </div>
         <CodeForm mode={codeSet ? "invoeren" : "instellen"} />

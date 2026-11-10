@@ -9,7 +9,13 @@ export const metadata: Metadata = {
   description: "Gezamenlijke boodschappenlijst van Vincent en Marleen",
   manifest: "/manifest.webmanifest",
   appleWebApp: { capable: true, title: "Boodschappen", statusBarStyle: "default" },
-  icons: { icon: "/icon-192.png", apple: "/apple-touch-icon.png" },
+  icons: {
+    icon: [
+      { url: "/favicon.svg", type: "image/svg+xml" },
+      { url: "/favicon-32.png", sizes: "32x32", type: "image/png" },
+    ],
+    apple: "/apple-touch-icon.png",
+  },
 };
 
 export const viewport: Viewport = {

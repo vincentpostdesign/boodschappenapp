@@ -227,6 +227,10 @@ create index access_attempts_ip_at on access_attempts (ip, at);
 alter table access_attempts enable row level security;
 grant all on access_attempts to service_role;
 
+-- ===== supabase/migrations/20261110020000_profielfoto.sql =====
+-- Profielfoto per persoon (zoals in pot-laden). Het bestand staat privé in bucket 'fotos' onder personen/.
+alter table people add column if not exists avatar_path text check (length(avatar_path) <= 200);
+
 -- ===== supabase/seed.sql =====
 -- Startdata. Draait bij `supabase db reset`.
 

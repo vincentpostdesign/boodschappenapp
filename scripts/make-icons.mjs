@@ -1,14 +1,19 @@
-// Maakt de PWA-iconen uit scripts/icon.svg. Draaien met: node scripts/make-icons.mjs
+// Maakt de PWA-iconen uit scripts/icon.svg en public/favicon.svg. Draaien met: node scripts/make-icons.mjs
 import sharp from "sharp";
 import { readFileSync } from "node:fs";
-const svg = readFileSync(new URL("./icon.svg", import.meta.url));
-const out = (n) => new URL(`../public/${n}`, import.meta.url).pathname.replace(/^\/([A-Z]:)/, "$1");
-for (const [name, size] of [["icon-192.png", 192], ["icon-512.png", 512], ["apple-touch-icon.png", 180]]) {
-  await sharp(svg, { density: 300 }).resize(size, size).png().toFile(decodeURIComponent(out(name)));
-}
-// Maskable: extra marge zodat Android er een cirkel van kan maken
+import { fileURLToPath } from "node:url";
+const p = (rel) => fileURLToPath(new URL(rel, import.meta.url));
+const icon = readFileSync(p("./icon.svg"));
+const fav = readFileSync(p("../public/favicon.svg"));
+const render = (svg, size) => sharp(svg, { density: 400 }).resize(size, size).png();
+// iOS rondt zelf af; Android-maskable krijgt extra marge (veilige zone 80%)
+await render(icon, 180).toFile(p("../public/apple-touch-icon.png"));
+await render(icon, 192).toFile(p("../public/icon-192.png"));
+await render(icon, 512).toFile(p("../public/icon-512.png"));
 await sharp({ create: { width: 512, height: 512, channels: 4, background: "#1f6f4a" } })
-  .composite([{ input: await sharp(svg, { density: 300 }).resize(400, 400).png().toBuffer(), gravity: "center" }])
+  .composite([{ input: await render(icon, 410).toBuffer(), gravity: "center" }])
   .png()
-  .toFile(decodeURIComponent(out("icon-maskable-512.png")));
+  .toFile(p("../public/icon-maskable-512.png"));
+await render(fav, 32).toFile(p("../public/favicon-32.png"));
+await 
 console.log("iconen klaar");

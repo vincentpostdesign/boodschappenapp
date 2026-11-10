@@ -1,5 +1,5 @@
 // Service worker: pushmeldingen en een eenvoudige offline-terugval.
-const CACHE = "boodschappen-v1";
+const CACHE = "boodschappen-v2";
 const OFFLINE_URLS = ["/", "/manifest.webmanifest", "/icon-192.png"];
 
 self.addEventListener("install", (event) => {

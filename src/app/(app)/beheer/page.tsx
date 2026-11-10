@@ -5,8 +5,9 @@ import { addDays, todayNL } from "@/lib/dates";
 import { getStores } from "@/lib/data";
 import { ShopperPlanner } from "@/components/beheer/ShopperPlanner";
 import { Notifications } from "@/components/beheer/Notifications";
-import { ChangeCodeForm } from "@/components/CodeForm";
-import { signOutDevice } from "@/app/toegang-actions";
+import { ChangeCodeForm, SetCodeForForm } from "@/components/CodeForm";
+import { codeStatus, signOutDevice } from "@/app/toegang-actions";
+import { ProfilePhoto } from "@/components/beheer/ProfilePhoto";
 import { IconChart, IconDown, IconEye, IconStar } from "@/components/icons";
 
 export const dynamic = "force-dynamic";
@@ -16,11 +17,12 @@ export default async function BeheerPage() {
   const me = await requirePerson();
   const today = todayNL();
   const days = Array.from({ length: 7 }, (_, i) => addDays(today, i));
-  const [planned, productCount, hiddenCount, stores] = await Promise.all([
+  const [planned, productCount, hiddenCount, stores, codes] = await Promise.all([
     db().from("shopper_days").select("day, person_id").gte("day", days[0]).lte("day", days[6]),
     db().from("products").select("id", { count: "exact", head: true }).eq("hidden", false),
     db().from("products").select("id", { count: "exact", head: true }).eq("hidden", true),
     getStores(),
+    codeStatus(),
   ]);
   const plan = Object.fromEntries(
     (check(planned, "planning") as { day: string; person_id: string }[]).map((r) => [r.day, r.person_id]),
@@ -58,18 +60,16 @@ export default async function BeheerPage() {
         </ul>
       </section>
 
-      <section aria-label="Deze telefoon" className="space-y-2">
-        <h2 className="px-1 text-xs font-bold uppercase tracking-wider text-muted">Deze telefoon</h2>
+      <section aria-label="Mijn profiel" className="space-y-2">
+        <h2 className="px-1 text-xs font-bold uppercase tracking-wider text-muted">Mijn profiel</h2>
+        <ProfilePhoto me={me} name={PEOPLE[me].name} />
         <Notifications />
         <ChangeCodeForm />
-        <div className="flex items-center justify-between gap-3 rounded-2xl border border-line bg-surface px-4 py-3">
-          <span>
-            Je bent <strong>{PEOPLE[me].name}</strong>
-          </span>
-          <Link href="/kies" className="flex h-11 items-center rounded-xl px-3 font-medium text-accent">
-            Wisselen
-          </Link>
-        </div>
+        {(["vincent", "marleen"] as const)
+          .filter((p) => !codes[p])
+          .map((p) => (
+            <SetCodeForForm key={p} person={p} name={PEOPLE[p].name} />
+          ))}
         <form action={signOutDevice}>
           <button className="h-12 w-full rounded-2xl border border-line bg-surface text-[15px] font-medium text-danger">
             Deze telefoon afmelden
