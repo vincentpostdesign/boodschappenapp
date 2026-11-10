@@ -7,13 +7,33 @@ import { useAvatarUrl } from "../Avatars";
 import type { PersonId } from "@/lib/types";
 
 const V = 280; // voorbeeldgrootte van de uitsnede
+const MAX_SOURCE = 1200; // grote telefoonfoto's eerst verkleinen (Safari tekent te grote beelden niet altijd volledig)
+
+/** Laadt een foto als <img> (respecteert de EXIF-draairichting) en verkleint hem naar een canvas. */
+async function loadPhoto(file: File): Promise<HTMLCanvasElement> {
+  const url = URL.createObjectURL(file);
+  try {
+    const img = new Image();
+    img.decoding = "async";
+    img.src = url;
+    await img.decode();
+    const scale = Math.min(1, MAX_SOURCE / Math.max(img.naturalWidth, img.naturalHeight));
+    const c = document.createElement("canvas");
+    c.width = Math.max(1, Math.round(img.naturalWidth * scale));
+    c.height = Math.max(1, Math.round(img.naturalHeight * scale));
+    c.getContext("2d")!.drawImage(img, 0, 0, c.width, c.height);
+    return c;
+  } finally {
+    URL.revokeObjectURL(url);
+  }
+}
 
 /** Profielfoto kiezen, uitsnijden (rondje) en opslaan — zoals in pot-laden. */
 export function ProfilePhoto({ me, name }: { me: PersonId; name: string }) {
   const router = useRouter();
   const hasPhoto = Boolean(useAvatarUrl(me));
   const picker = useRef<HTMLInputElement>(null);
-  const [bitmap, setBitmap] = useState<ImageBitmap | null>(null);
+  const [bitmap, setBitmap] = useState<HTMLCanvasElement | null>(null);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<{ text: string; bad?: boolean } | null>(null);
 
@@ -25,7 +45,7 @@ export function ProfilePhoto({ me, name }: { me: PersonId; name: string }) {
     if (!/^image\/(jpeg|png|webp|heic|heif)$/.test(f.type) && !f.type.startsWith("image/")) return setMessage({ text: "Kies een foto (JPEG, PNG of WebP).", bad: true });
     if (f.size > 15 * 1024 * 1024) return setMessage({ text: "Foto is te groot (maximaal 15 MB).", bad: true });
     try {
-      setBitmap(await createImageBitmap(f));
+      setBitmap(await loadPhoto(f));
     } catch {
       setMessage({ text: "Deze foto kan de browser niet openen. Probeer een JPEG of PNG.", bad: true });
     }
@@ -52,11 +72,11 @@ export function ProfilePhoto({ me, name }: { me: PersonId; name: string }) {
   };
 
   return (
-    <div className="flex items-center gap-4 rounded-2xl border border-line bg-surface p-4">
+    <div className="flex items-start gap-4 rounded-2xl border border-line bg-surface p-4">
       <PersonDot person={me} size="lg" title={`Profielfoto van ${name}`} />
       <div className="min-w-0 flex-1 space-y-2">
         <p className="font-semibold">{name}</p>
-        <div className="flex flex-wrap gap-2">
+        <div className="flex flex-col items-start gap-2">
           <button
             type="button"
             disabled={busy}
@@ -66,7 +86,7 @@ export function ProfilePhoto({ me, name }: { me: PersonId; name: string }) {
             {busy ? "Bezig…" : hasPhoto ? "Andere foto kiezen" : "Foto kiezen"}
           </button>
           {hasPhoto && (
-            <button type="button" disabled={busy} onClick={remove} className="h-10 whitespace-nowrap rounded-xl px-3 text-sm font-semibold text-danger disabled:opacity-50">
+            <button type="button" disabled={busy} onClick={remove} className="h-10 whitespace-nowrap rounded-xl border border-danger/40 px-3 text-sm font-semibold text-danger disabled:opacity-50">
               Foto verwijderen
             </button>
           )}
@@ -84,7 +104,7 @@ export function ProfilePhoto({ me, name }: { me: PersonId; name: string }) {
   );
 }
 
-function CropDialog({ bitmap, onCancel, onDone }: { bitmap: ImageBitmap; onCancel: () => void; onDone: (b: Blob) => void }) {
+function CropDialog({ bitmap, onCancel, onDone }: { bitmap: HTMLCanvasElement; onCancel: () => void; onDone: (b: Blob) => void }) {
   const canvas = useRef<HTMLCanvasElement>(null);
   const okButton = useRef<HTMLButtonElement>(null);
   const [zoom, setZoom] = useState(1);
