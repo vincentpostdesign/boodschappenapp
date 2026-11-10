@@ -20,7 +20,7 @@ export async function getAvatarUrls(): Promise<Record<PersonId, string | null>> 
     const p = people.find((x) => x.id === id);
     if (!p?.avatar_path) return null;
     const v = p.avatar_path.split("-").pop()?.replace(".jpg", "").slice(0, 8);
-    return `/api/foto/persoon/${id}?v=${v}`;
+    return `/api/foto/persoon/${id}?v=${v}-2`; // "-2": oude, half ontvangen versies niet meer uit de cache halen
   };
   return { vincent: url("vincent"), marleen: url("marleen") };
 }
