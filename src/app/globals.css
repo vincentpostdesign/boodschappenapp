@@ -59,12 +59,32 @@
 
 html {
   -webkit-tap-highlight-color: transparent;
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
+/* Beeld vast: niet zijwaarts verschuiven of meeveren, geen dubbeltik-zoom */
+html,
+body {
+  overflow-x: clip;
+  overscroll-behavior-x: none;
 }
 
 body {
   background: var(--bg);
   color: var(--ink);
   font-family: var(--font-geist-sans), system-ui, sans-serif;
+  touch-action: manipulation;
+}
+
+/* Alleen staand op de telefoon: in liggende stand een melding (iOS negeert de stand uit het manifest) */
+.draai-melding {
+  display: none;
+}
+@media (orientation: landscape) and (max-height: 500px) and (pointer: coarse) {
+  .draai-melding {
+    display: flex;
+  }
 }
 
 /* Ruimte voor de onderbalk, inclusief de iPhone-thuisbalk */
