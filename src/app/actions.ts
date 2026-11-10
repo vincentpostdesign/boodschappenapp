@@ -6,6 +6,7 @@ import { redirect } from "next/navigation";
 import { db, check } from "@/lib/db";
 import { LONG_COOKIE, PERSON_COOKIE, STORE_COOKIE, isPersonId, requirePerson } from "@/lib/session";
 import { matchProduct } from "@/lib/route";
+import { parseQuantity } from "@/lib/quantity";
 import { getProducts } from "@/lib/data";
 import { ACCESS_COOKIE, verifyAccessToken } from "@/lib/access";
 import type { Product } from "@/lib/types";
@@ -42,15 +43,29 @@ async function productIdsOnList(): Promise<Set<string>> {
   return new Set(rows.map((r) => r.product_id));
 }
 
-/** Vrij invoerveld. Herkent een vast product als de naam precies overeenkomt. */
+/**
+ * Vrij invoerveld. Haalt een aantal uit de tekst ("2x salade", "3 appels") en herkent een vast product
+ * als de naam precies overeenkomt. Staat dat product al op de lijst, dan wordt alleen het aantal bijgewerkt.
+ */
 export async function addFreeItem(text: string, quantity?: number) {
   const person = await requirePerson();
-  const name = text.trim().replace(/\s+/g, " ");
+  const parsed = parseQuantity(text);
+  const name = parsed.name;
+  quantity ??= parsed.quantity ?? undefined;
   if (!name) return;
   if (name.length > 120) throw new Error("Naam is te lang");
   const products = await getProducts();
   const match = matchProduct(name, products);
-  if (match && (await productIdsOnList()).has(match.id)) return refresh();
+  if (match && (await productIdsOnList()).has(match.id)) {
+    if (quantity) {
+      const q = Math.max(1, Math.min(99, Math.round(quantity)));
+      check(
+        await db().from("list_items").update({ quantity: q }).eq("product_id", match.id).eq("archived", false).eq("checked", false),
+        "aantal",
+      );
+    }
+    return refresh();
+  }
   check(
     await db().from("list_items").insert({
       product_id: match?.id ?? null,
