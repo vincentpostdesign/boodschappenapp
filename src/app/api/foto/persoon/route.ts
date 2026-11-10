@@ -1,4 +1,5 @@
-import { NextResponse, type NextRequest } from "next/server";
+import { NextResponse, after, type NextRequest } from "next/server";
+import { bumpVersion } from "@/lib/version";
 import { revalidateTag } from "next/cache";
 import sharp from "sharp";
 import { db, check } from "@/lib/db";
@@ -32,6 +33,7 @@ export async function POST(req: NextRequest) {
   check(await db().from("people").update({ avatar_path: path }).eq("id", person), "persoon bijwerken");
   if (old) await db().storage.from("fotos").remove([old]);
   revalidateTag(TAG_MENSEN);
+  after(bumpVersion);
   return NextResponse.json({ ok: true });
 }
 
@@ -43,5 +45,6 @@ export async function DELETE() {
   check(await db().from("people").update({ avatar_path: null }).eq("id", person), "persoon bijwerken");
   if (old) await db().storage.from("fotos").remove([old]);
   revalidateTag(TAG_MENSEN);
+  after(bumpVersion);
   return NextResponse.json({ ok: true });
 }

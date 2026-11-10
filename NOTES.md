@@ -8,6 +8,7 @@
 - **Weekrooster** (10 november 2026): wie de boodschappen doet staat per weekdag in `settings.weekrooster` (7 plaatsen, maandag = 0) en geldt elke week. Bij het eerste gebruik overgenomen uit de losse datums. `shopper_days` is nu alleen nog het logboek van de ochtendherinnering.
 - **Lijst**: veeg naar links voor Verwijderen (ver doorvegen verwijdert direct); − / + direct in de regel.
 - **Beheer → App verversen**: servercache vernieuwen, app-cache op de telefoon legen, nieuwste versie laden.
+- **Samen live**: elke wijziging hoogt `settings.versie` op (na het antwoord, met `after()`); open apps vragen `/api/versie` elke 3 s op (alleen als de app zichtbaar is, en direct bij terugkomen) en verversen zichzelf bij een nieuwe versie. Getest: toevoeging van de ander zichtbaar na ±2 s.
 - **Snelheid**: Vercel-functies in Frankfurt (`regions: ["fra1"]`, naast de database); winkels, afdelingen, vaste producten, personen en prijzen in de servercache (labels `catalogus`, `prijzen`, `mensen`), ververst bij elke wijziging.
 - **Alle databasetoegang via de server** (server actions en route handlers) met de service-role-sleutel. RLS staat aan op alle tabellen zonder publieke policies, dus de publieke sleutel kan niets.
 - **Jumbo-looproute**: nog onbekend. Voorlopige indeling van 16 afdelingen (Groente en fruit … Zuivel, Diepvries, Overig), passend bij de afdelingen uit de producttabel (Zuivel, Brood, Ontbijt, Noten en chips). Aanpasbaar in Beheer.

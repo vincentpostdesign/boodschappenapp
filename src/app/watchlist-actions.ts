@@ -1,6 +1,8 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { after } from "next/server";
+import { bumpVersion } from "@/lib/version";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { db, check } from "@/lib/db";
@@ -9,6 +11,7 @@ import { shortDate } from "@/lib/dates";
 
 function refresh() {
   revalidatePath("/", "layout");
+  after(bumpVersion);
 }
 
 const optNumber = (min: number, max: number) =>

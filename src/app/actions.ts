@@ -2,6 +2,8 @@
 
 import { cookies } from "next/headers";
 import { revalidatePath } from "next/cache";
+import { after } from "next/server";
+import { bumpVersion } from "@/lib/version";
 import { redirect } from "next/navigation";
 import { db, check } from "@/lib/db";
 import { LONG_COOKIE, PERSON_COOKIE, STORE_COOKIE, isPersonId, requirePerson } from "@/lib/session";
@@ -13,6 +15,7 @@ import type { Product } from "@/lib/types";
 
 function refresh() {
   revalidatePath("/", "layout");
+  after(bumpVersion); // open apps (bijv. die van Marleen) verversen zichzelf
 }
 
 // ---------- wie ben ik / winkel ----------

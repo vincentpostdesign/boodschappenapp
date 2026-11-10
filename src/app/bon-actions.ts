@@ -1,6 +1,8 @@
 "use server";
 
 import { revalidatePath, revalidateTag } from "next/cache";
+import { after } from "next/server";
+import { bumpVersion } from "@/lib/version";
 import { TAG_PRIJZEN } from "@/lib/data";
 import { redirect } from "next/navigation";
 import { z } from "zod";
@@ -83,6 +85,7 @@ export async function saveReceipt(input: ReceiptInput): Promise<{ error?: string
   }
   revalidateTag(TAG_PRIJZEN);
   revalidatePath("/", "layout");
+  after(bumpVersion);
   redirect("/bonnen");
 }
 
@@ -93,5 +96,6 @@ export async function deleteReceipt(id: string) {
   if (row?.photo_path) await db().storage.from("fotos").remove([row.photo_path]);
   revalidateTag(TAG_PRIJZEN);
   revalidatePath("/", "layout");
+  after(bumpVersion);
   redirect("/bonnen");
 }

@@ -1,6 +1,8 @@
 "use server";
 
 import { revalidatePath, revalidateTag } from "next/cache";
+import { after } from "next/server";
+import { bumpVersion } from "@/lib/version";
 import { TAG_CATALOGUS, TAG_PRIJZEN, getWeekSchedule } from "@/lib/data";
 import { WEEKDAYS, weekdayIndex } from "@/lib/schedule";
 import { TAG_MENSEN } from "@/lib/people";
@@ -15,6 +17,7 @@ function refresh() {
   revalidateTag(TAG_CATALOGUS);
   revalidateTag(TAG_PRIJZEN);
   revalidatePath("/", "layout");
+  after(bumpVersion);
 }
 
 /** Knop "App verversen": alle bewaarde gegevens opnieuw ophalen. */
