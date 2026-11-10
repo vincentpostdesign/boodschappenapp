@@ -6,6 +6,7 @@ import { redirect } from "next/navigation";
 import { db, check } from "@/lib/db";
 import { LONG_COOKIE, PERSON_COOKIE, STORE_COOKIE, isPersonId, requirePerson } from "@/lib/session";
 import { matchProduct } from "@/lib/route";
+import { ACCESS_COOKIE, verifyAccessToken } from "@/lib/access";
 import type { Product } from "@/lib/types";
 
 function refresh() {
@@ -15,6 +16,7 @@ function refresh() {
 // ---------- wie ben ik / winkel ----------
 
 export async function choosePerson(formData: FormData) {
+  if (!(await verifyAccessToken((await cookies()).get(ACCESS_COOKIE)?.value))) redirect("/kies");
   const id = formData.get("person");
   if (!isPersonId(id)) throw new Error("Onbekende persoon");
   (await cookies()).set(PERSON_COOKIE, id, LONG_COOKIE);

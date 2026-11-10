@@ -3,7 +3,8 @@
 ## Beslissingen
 
 - **Database lokaal**: Supabase CLI met Docker Desktop (`npx supabase start`). Migraties in `supabase/migrations`, startdata in `supabase/seed.sql`.
-- **Geen login**: een cookie (`persoon`) onthoudt per telefoon wie je bent; `/kies` bij het eerste gebruik. **Pincode standaard uit** (instelling `pin_required` in de tabel `settings`).
+- **Gezinscode** (sinds 10 november 2026): zonder code is niets bereikbaar (pagina's én API, behalve de cron-routes met hun eigen geheim). Elke telefoon vult de code één keer in; daarna een ondertekend bewijs in de cookie `toegang` (HMAC, 400 dagen). De code staat als scrypt-hash in `settings.toegangscode`. Na 5 foute pogingen per IP 15 minuten blokkade (`access_attempts`). De eerste code kiest wie de app als eerste opent; wijzigen en "Deze telefoon afmelden" in Beheer. Wijzigen van de code meldt bestaande telefoons niet af.
+- **Wie ben je**: daarna onthoudt een cookie (`persoon`) per telefoon of je Vincent of Marleen bent.
 - **Alle databasetoegang via de server** (server actions en route handlers) met de service-role-sleutel. RLS staat aan op alle tabellen zonder publieke policies, dus de publieke sleutel kan niets.
 - **Jumbo-looproute**: nog onbekend. Voorlopige indeling van 16 afdelingen (Groente en fruit … Zuivel, Diepvries, Overig), passend bij de afdelingen uit de producttabel (Zuivel, Brood, Ontbijt, Noten en chips). Aanpasbaar in Beheer.
 - **Plus, Albert Heijn, Lidl**: voorlopig dezelfde afdelingsvolgorde als de Aldi.
@@ -70,7 +71,7 @@ Resultaat: 45 koppelingen, bij steekproef allemaal juist. Liever een gemiste kop
 - **GitHub**: `vincentpostdesign/Boodschappenapp` (branch `main`, openbaar).
 - **Supabase**: project *Boodschappenapp* (ref `fvtlvgravofejdzhujeh`) in organisatie *Privé* (Free-plan), regio Europa. Aangemaakt op 10 november 2026, "nieuwe tabellen automatisch openstellen" uit.
 - Database opgezet met `supabase/live-setup.sql` via de SQL-editor (alle migraties + startdata). Gecontroleerd: 5 winkels, 60 afdelingen, 16 vaste producten, 4 watchlist-items, RLS op alle tabellen, geen publieke policies, bucket `fotos` privé, anonieme sleutel heeft geen leesrechten.
-- Let op: omdat de migraties via de SQL-editor zijn gedraaid, kent de Supabase-CLI ze nog niet. Wil je later `npx supabase db push` gebruiken, markeer ze dan eerst als toegepast: `npx supabase migration repair --status applied 20261109000000 20261109010000 20261109020000 20261110000000`.
+- Let op: omdat de migraties via de SQL-editor zijn gedraaid, kent de Supabase-CLI ze nog niet. Wil je later `npx supabase db push` gebruiken, markeer ze dan eerst als toegepast: `npx supabase migration repair --status applied 20261109000000 20261109010000 20261109020000 20261110000000 20261110010000`.
 - **Vercel**: project *boodschappenapp* in team *vincentpost-3237's projects* (Pro), live op **https://boodschappenapp-kappa.vercel.app**. Elke push naar `main` deployt automatisch. Variabelen staan in Vercel; de bron is `.env.vercel` (lokaal, buiten git).
 - Rechten: met "expose new tables" uit kreeg ook `service_role` geen rechten; opgelost met migratie `20261110000000_rechten_server.sql` (alleen de server krijgt rechten, anon/authenticated niet).
 - Free-plan: het project gaat na een week zonder verkeer op pauze; de dagelijkse cron-taken op Vercel houden het actief.

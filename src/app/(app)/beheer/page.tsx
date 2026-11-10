@@ -5,6 +5,8 @@ import { addDays, todayNL } from "@/lib/dates";
 import { getStores } from "@/lib/data";
 import { ShopperPlanner } from "@/components/beheer/ShopperPlanner";
 import { Notifications } from "@/components/beheer/Notifications";
+import { ChangeCodeForm } from "@/components/CodeForm";
+import { signOutDevice } from "@/app/toegang-actions";
 import { IconChart, IconDown, IconEye, IconStar } from "@/components/icons";
 
 export const dynamic = "force-dynamic";
@@ -59,6 +61,7 @@ export default async function BeheerPage() {
       <section aria-label="Deze telefoon" className="space-y-2">
         <h2 className="px-1 text-xs font-bold uppercase tracking-wider text-muted">Deze telefoon</h2>
         <Notifications />
+        <ChangeCodeForm />
         <div className="flex items-center justify-between gap-3 rounded-2xl border border-line bg-surface px-4 py-3">
           <span>
             Je bent <strong>{PEOPLE[me].name}</strong>
@@ -67,6 +70,11 @@ export default async function BeheerPage() {
             Wisselen
           </Link>
         </div>
+        <form action={signOutDevice}>
+          <button className="h-12 w-full rounded-2xl border border-line bg-surface text-[15px] font-medium text-danger">
+            Deze telefoon afmelden
+          </button>
+        </form>
       </section>
     </div>
   );
