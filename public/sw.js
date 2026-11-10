@@ -1,5 +1,5 @@
 // Service worker: pushmeldingen en een eenvoudige offline-terugval.
-const CACHE = "boodschappen-v2";
+const CACHE = "boodschappen-v3";
 const OFFLINE_URLS = ["/", "/manifest.webmanifest", "/icon-192.png"];
 
 self.addEventListener("install", (event) => {
@@ -67,4 +67,8 @@ self.addEventListener("notificationclick", (event) => {
       return self.clients.openWindow(url);
     }),
   );
+});
+
+self.addEventListener("message", (event) => {
+  if (event.data && event.data.type === "SKIP_WAITING") self.skipWaiting();
 });

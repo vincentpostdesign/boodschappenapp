@@ -1,60 +1,55 @@
 "use client";
 
 import { useOptimistic, useTransition } from "react";
-import { setShopper } from "@/app/beheer-actions";
+import { setWeekdayShopper } from "@/app/beheer-actions";
+import { WEEKDAYS } from "@/lib/schedule";
+import type { PersonId } from "@/lib/types";
 
 const OPTIONS = [
   { id: "vincent", label: "Vincent", on: "bg-vincent text-white border-vincent" },
   { id: "marleen", label: "Marleen", on: "bg-marleen text-white border-marleen" },
 ] as const;
 
-function dayLabel(day: string, index: number) {
-  if (index === 0) return "Vandaag";
-  if (index === 1) return "Morgen";
-  const s = new Intl.DateTimeFormat("nl-NL", { weekday: "short", day: "numeric", month: "short", timeZone: "UTC" }).format(
-    new Date(`${day}T12:00:00Z`),
-  );
-  return s.charAt(0).toUpperCase() + s.slice(1).replace(/\./g, "");
-}
-
-export function ShopperPlanner({ days, plan }: { days: string[]; plan: Record<string, string> }) {
+/** Vast weekrooster: per weekdag wie de boodschappen doet. Geldt elke week; vandaag is gemarkeerd. */
+export function ShopperPlanner({ schedule, todayIndex, todayLabel }: { schedule: (PersonId | null)[]; todayIndex: number; todayLabel: string }) {
   const [, start] = useTransition();
-  const [state, set] = useOptimistic(plan, (p, [d, v]: [string, string | null]) => {
-    const next = { ...p };
-    if (v) next[d] = v;
-    else delete next[d];
-    return next;
-  });
+  const [state, set] = useOptimistic(schedule, (s, [i, v]: [number, PersonId | null]) => s.map((x, j) => (j === i ? v : x)));
 
   return (
     <ul className="divide-y divide-line overflow-hidden rounded-2xl border border-line bg-surface">
-      {days.map((d, i) => (
-        <li key={d} className="flex items-center gap-3 px-4 py-2.5">
-          <span className={`min-w-0 flex-1 ${i === 0 ? "font-semibold" : ""}`}>{dayLabel(d, i)}</span>
-          <div role="radiogroup" aria-label={`Boodschapper ${dayLabel(d, i)}`} className="flex gap-1.5">
-            {OPTIONS.map((o) => {
-              const on = state[d] === o.id;
-              return (
-                <button
-                  key={o.id}
-                  role="radio"
-                  aria-checked={on}
-                  onClick={() =>
-                    start(async () => {
-                      const v = on ? null : o.id;
-                      set([d, v]);
-                      await setShopper(d, v);
-                    })
-                  }
-                  className={`h-11 whitespace-nowrap rounded-xl border px-3.5 text-sm font-semibold ${on ? o.on : "border-line text-muted"}`}
-                >
-                  {o.label}
-                </button>
-              );
-            })}
-          </div>
-        </li>
-      ))}
+      {WEEKDAYS.map((name, i) => {
+        const isToday = i === todayIndex;
+        return (
+          <li key={name} className={`flex items-center gap-3 px-4 py-2.5 ${isToday ? "bg-accent-soft" : ""}`} aria-current={isToday ? "date" : undefined}>
+            <span className="min-w-0 flex-1">
+              <span className={`block ${isToday ? "font-semibold text-accent" : ""}`}>{name}</span>
+              {isToday && <span className="block text-xs font-medium text-accent">Vandaag · {todayLabel}</span>}
+            </span>
+            <div role="radiogroup" aria-label={`Boodschapper op ${name.toLowerCase()}`} className="flex gap-1.5">
+              {OPTIONS.map((o) => {
+                const on = state[i] === o.id;
+                return (
+                  <button
+                    key={o.id}
+                    role="radio"
+                    aria-checked={on}
+                    onClick={() =>
+                      start(async () => {
+                        const v = on ? null : o.id;
+                        set([i, v]);
+                        await setWeekdayShopper(i, v);
+                      })
+                    }
+                    className={`h-11 whitespace-nowrap rounded-xl border px-3.5 text-sm font-semibold ${on ? o.on : "border-line bg-surface text-muted"}`}
+                  >
+                    {o.label}
+                  </button>
+                );
+              })}
+            </div>
+          </li>
+        );
+      })}
     </ul>
   );
 }

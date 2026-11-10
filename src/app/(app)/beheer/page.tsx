@@ -1,8 +1,10 @@
 import Link from "next/link";
-import { db, check } from "@/lib/db";
+import { db } from "@/lib/db";
 import { PEOPLE, requirePerson } from "@/lib/session";
-import { addDays, todayNL } from "@/lib/dates";
-import { getStores } from "@/lib/data";
+import { longDate, todayNL } from "@/lib/dates";
+import { getStores, getWeekSchedule } from "@/lib/data";
+import { weekdayIndex } from "@/lib/schedule";
+import { RefreshApp } from "@/components/beheer/RefreshApp";
 import { ShopperPlanner } from "@/components/beheer/ShopperPlanner";
 import { Notifications } from "@/components/beheer/Notifications";
 import { ChangeCodeForm, SetCodeForForm } from "@/components/CodeForm";
@@ -16,28 +18,29 @@ export const metadata = { title: "Beheer · Boodschappen" };
 export default async function BeheerPage() {
   const me = await requirePerson();
   const today = todayNL();
-  const days = Array.from({ length: 7 }, (_, i) => addDays(today, i));
-  const [planned, productCount, hiddenCount, stores, codes] = await Promise.all([
-    db().from("shopper_days").select("day, person_id").gte("day", days[0]).lte("day", days[6]),
+  const [schedule, productCount, hiddenCount, stores, codes] = await Promise.all([
+    getWeekSchedule(),
     db().from("products").select("id", { count: "exact", head: true }).eq("hidden", false),
     db().from("products").select("id", { count: "exact", head: true }).eq("hidden", true),
     getStores(),
     codeStatus(),
   ]);
-  const plan = Object.fromEntries(
-    (check(planned, "planning") as { day: string; person_id: string }[]).map((r) => [r.day, r.person_id]),
-  );
 
   return (
     <div className="space-y-7">
-      <h1 className="text-2xl font-semibold tracking-tight">Beheer</h1>
+      <div className="flex items-center justify-between gap-3">
+        <h1 className="text-2xl font-semibold tracking-tight">Beheer</h1>
+        <RefreshApp />
+      </div>
 
       <section id="wie" aria-labelledby="wie-kop" className="scroll-mt-4 space-y-2">
         <h2 id="wie-kop" className="px-1 text-xs font-bold uppercase tracking-wider text-muted">
-          Wie doet de boodschappen
+          Wie doet de boodschappen · elke week
         </h2>
-        <ShopperPlanner days={days} plan={plan} />
-        <p className="px-1 text-xs text-muted">Wie is aangewezen krijgt een melding, en die dag om 8:00 een herinnering.</p>
+        <ShopperPlanner schedule={schedule} todayIndex={weekdayIndex(today)} todayLabel={longDate(today).replace(/^\S+\s/, "")} />
+        <p className="px-1 text-xs text-muted">
+          Dit rooster geldt elke week. Wie wordt ingeroosterd krijgt een melding, en op zijn dag om 8:00 een herinnering.
+        </p>
       </section>
 
       <section aria-label="Onderdelen" className="space-y-2">

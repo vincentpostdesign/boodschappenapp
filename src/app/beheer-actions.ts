@@ -1,13 +1,15 @@
 "use server";
 
 import { revalidatePath, revalidateTag } from "next/cache";
-import { TAG_CATALOGUS, TAG_PRIJZEN } from "@/lib/data";
+import { TAG_CATALOGUS, TAG_PRIJZEN, getWeekSchedule } from "@/lib/data";
+import { WEEKDAYS, weekdayIndex } from "@/lib/schedule";
+import { TAG_MENSEN } from "@/lib/people";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { db, check } from "@/lib/db";
 import { PEOPLE, isPersonId, requirePerson } from "@/lib/session";
 import { openItemCount, productenTekst, sendToPerson } from "@/lib/push";
-import { addDays, longDate, todayNL } from "@/lib/dates";
+import { todayNL } from "@/lib/dates";
 
 function refresh() {
   revalidateTag(TAG_CATALOGUS);
@@ -15,40 +17,36 @@ function refresh() {
   revalidatePath("/", "layout");
 }
 
+/** Knop "App verversen": alle bewaarde gegevens opnieuw ophalen. */
+export async function refreshAllData() {
+  await requirePerson();
+  refresh();
+  revalidateTag(TAG_MENSEN);
+}
+
 // ---------- wie doet de boodschappen ----------
 
-const day = z.string().regex(/^\d{4}-\d{2}-\d{2}$/);
-
-/** person = null: niemand aangewezen voor die dag. */
-export async function setShopper(dayStr: string, person: string | null) {
+/** Vast weekrooster: wie doet op deze weekdag (0 = maandag) de boodschappen; null = niemand. */
+export async function setWeekdayShopper(weekday: number, person: string | null) {
   const me = await requirePerson();
-  const d = day.parse(dayStr);
-  if (person === null) {
-    check(await db().from("shopper_days").delete().eq("day", d), "boodschapper wissen");
-  } else {
-    if (!isPersonId(person)) throw new Error("Onbekende persoon");
-    // Bij een wissel van persoon de meldstatus opnieuw zetten, zodat de nieuwe persoon een melding krijgt.
-    const existing = check(await db().from("shopper_days").select("person_id").eq("day", d).maybeSingle(), "boodschapper") as {
-      person_id: string;
-    } | null;
-    if (existing?.person_id === person) return;
-    check(
-      await db().from("shopper_days").upsert({ day: d, person_id: person, notified_at: null, reminded_at: null }),
-      "boodschapper opslaan",
-    );
-    // Melding naar de aangewezen persoon (niet als je jezelf aanwijst).
-    if (person !== me) {
-      const today = todayNL();
-      const when = d === today ? "vandaag" : d === addDays(today, 1) ? "morgen" : longDate(d);
-      const n = await openItemCount();
-      await sendToPerson(person, {
-        title: `Jij doet ${when} de boodschappen`,
-        body: `${PEOPLE[me].name} heeft je aangewezen. Er staan nu ${productenTekst(n)} op de lijst.`,
-        url: "/",
-        tag: `aangewezen-${d}`,
-      });
-      check(await db().from("shopper_days").update({ notified_at: new Date().toISOString() }).eq("day", d), "gemeld");
-    }
+  if (!Number.isInteger(weekday) || weekday < 0 || weekday > 6) throw new Error("Onbekende dag");
+  if (person !== null && !isPersonId(person)) throw new Error("Onbekende persoon");
+  const schedule = await getWeekSchedule();
+  if (schedule[weekday] === person) return;
+  schedule[weekday] = person;
+  check(await db().from("settings").upsert({ key: "weekrooster", value: schedule }), "weekrooster opslaan");
+
+  // Melding naar wie wordt aangewezen (niet als je jezelf aanwijst).
+  if (person && person !== me) {
+    const today = todayNL();
+    const isToday = weekdayIndex(today) === weekday;
+    const n = await openItemCount();
+    await sendToPerson(person, {
+      title: isToday ? "Jij doet vandaag de boodschappen" : `Jij doet voortaan op ${WEEKDAYS[weekday].toLowerCase()} de boodschappen`,
+      body: `${PEOPLE[me].name} heeft je ingeroosterd. Er staan nu ${productenTekst(n)} op de lijst.`,
+      url: "/",
+      tag: `rooster-${weekday}`,
+    });
   }
   refresh();
 }

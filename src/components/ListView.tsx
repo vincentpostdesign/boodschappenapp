@@ -5,6 +5,7 @@ import { addFreeItem, removeItem, setChecked, setQuantity } from "@/app/actions"
 import { PersonDot } from "./PersonDot";
 import { IconCheck, IconPlus, IconTag, IconTrash } from "./icons";
 import { Stepper } from "./Stepper";
+import { SwipeToDelete } from "./SwipeToDelete";
 import type { PersonId } from "@/lib/types";
 
 export type ViewItem = {
@@ -37,7 +38,25 @@ export function ListView({
   // Optimistisch afvinken: direct zichtbaar, server volgt.
   const [toggled, toggle] = useOptimistic(new Map<string, boolean>(), (m, [id, v]: [string, boolean]) => new Map(m).set(id, v));
   const [openItem, setOpenItem] = useState<string | null>(null);
+  const [swipeOpen, setSwipeOpen] = useState<string | null>(null);
+  // Optimistisch verwijderen: regel verdwijnt direct, server volgt.
+  const [removed, markRemoved] = useOptimistic(new Set<string>(), (s, id: string) => new Set(s).add(id));
 
+  const onRemove = (item: ViewItem) =>
+    start(async () => {
+      markRemoved(item.id);
+      setSwipeOpen(null);
+      await removeItem(item.id);
+    });
+  const swipeProps = (item: ViewItem) => ({
+    swipeOpen: swipeOpen === item.id,
+    onSwipeOpen: (o: boolean) => setSwipeOpen(o ? item.id : null),
+    onRemove: () => onRemove(item),
+  });
+
+  const visible = (items: ViewItem[]) => items.filter((i) => !removed.has(i.id));
+  groups = groups.map((g) => ({ ...g, items: visible(g.items) }));
+  done = visible(done);
   const all = [...groups.flatMap((g) => g.items), ...done];
   const isChecked = (i: ViewItem) => toggled.get(i.id) ?? i.checked;
   const openGroups = groups
@@ -82,6 +101,7 @@ export function ListView({
                 expanded={openItem === item.id}
                 onExpand={() => setOpenItem(openItem === item.id ? null : item.id)}
                 onToggle={() => onToggle(item)}
+                {...swipeProps(item)}
               />
             ))}
           </ul>
@@ -93,7 +113,7 @@ export function ListView({
           <h2 className="mb-2 px-1 text-xs font-bold uppercase tracking-wider text-muted">Gehaald · {doneItems.length}</h2>
           <ul className="divide-y divide-line overflow-hidden rounded-2xl border border-line bg-surface/60">
             {doneItems.map((item) => (
-              <Row key={item.id} item={item} checked expanded={false} onExpand={() => {}} onToggle={() => onToggle(item)} />
+              <Row key={item.id} item={item} checked expanded={false} onExpand={() => {}} onToggle={() => onToggle(item)} {...swipeProps(item)} />
             ))}
           </ul>
           <p className="mt-2 px-1 text-xs text-muted">Gehaalde producten verdwijnen vannacht van de lijst.</p>
@@ -109,12 +129,18 @@ function Row({
   expanded,
   onExpand,
   onToggle,
+  swipeOpen,
+  onSwipeOpen,
+  onRemove,
 }: {
   item: ViewItem;
   checked: boolean;
   expanded: boolean;
   onExpand: () => void;
   onToggle: () => void;
+  swipeOpen: boolean;
+  onSwipeOpen: (open: boolean) => void;
+  onRemove: () => void;
 }) {
   const [, start] = useTransition();
   const [qty, setQty] = useOptimistic(item.quantity);
@@ -125,6 +151,7 @@ function Row({
     });
   return (
     <li>
+      <SwipeToDelete open={swipeOpen} onOpenChange={onSwipeOpen} onDelete={onRemove} label={item.name}>
       <div className="flex min-h-16 items-center gap-2 pl-2 pr-2">
         <button
           onClick={onToggle}
@@ -160,10 +187,11 @@ function Row({
         </button>
         {!checked && <Stepper value={qty} label={item.name} onChange={changeQty} />}
       </div>
+      </SwipeToDelete>
       {expanded && (
         <div className="flex items-center justify-end gap-2 border-t border-line bg-surface-2/60 px-3 py-2">
           <button
-            onClick={() => start(() => removeItem(item.id))}
+            onClick={onRemove}
             className="flex h-11 items-center gap-2 rounded-xl px-3 text-sm font-medium text-danger"
           >
             <IconTrash className="h-5 w-5" /> Van de lijst halen

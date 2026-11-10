@@ -2,7 +2,8 @@ import "server-only";
 import { unstable_cache } from "next/cache";
 import { db, check } from "./db";
 import { chosenStoreId } from "./session";
-import { todayNL } from "./dates";
+import { addDays, todayNL } from "./dates";
+import { parseSchedule, scheduleFromDays, shopperOn, type WeekSchedule } from "./schedule";
 import type { Department, ListItem, PersonId, Product, Store } from "./types";
 import type { KnownPrice } from "./prices/cheaper";
 
@@ -111,12 +112,25 @@ async function loadKnownPrices(today: string): Promise<KnownPrice[]> {
   return [...best.values()];
 }
 
+/**
+ * Het vaste weekrooster (settings 'weekrooster'). Bestaat het nog niet, dan wordt het afgeleid
+ * uit de datums die eerder per dag waren ingevuld, zodat niets verloren gaat.
+ */
+export async function getWeekSchedule(): Promise<WeekSchedule> {
+  const row = check(await db().from("settings").select("value").eq("key", "weekrooster").maybeSingle(), "weekrooster") as {
+    value: unknown;
+  } | null;
+  if (row) return parseSchedule(row.value);
+  const today = todayNL();
+  const days = check(
+    await db().from("shopper_days").select("day, person_id").gte("day", today).lte("day", addDays(today, 13)),
+    "planning",
+  ) as { day: string; person_id: string }[];
+  return scheduleFromDays(days);
+}
+
 export async function getShopper(day = todayNL()): Promise<PersonId | null> {
-  const row = check(
-    await db().from("shopper_days").select("person_id").eq("day", day).maybeSingle(),
-    "boodschapper ophalen",
-  ) as { person_id: PersonId } | null;
-  return row?.person_id ?? null;
+  return shopperOn(await getWeekSchedule(), day);
 }
 
 export async function getSetting<T>(key: string, fallback: T): Promise<T> {
