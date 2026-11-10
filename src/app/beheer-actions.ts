@@ -1,6 +1,7 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
+import { revalidatePath, revalidateTag } from "next/cache";
+import { TAG_CATALOGUS, TAG_PRIJZEN } from "@/lib/data";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { db, check } from "@/lib/db";
@@ -9,6 +10,8 @@ import { openItemCount, productenTekst, sendToPerson } from "@/lib/push";
 import { addDays, longDate, todayNL } from "@/lib/dates";
 
 function refresh() {
+  revalidateTag(TAG_CATALOGUS);
+  revalidateTag(TAG_PRIJZEN);
   revalidatePath("/", "layout");
 }
 

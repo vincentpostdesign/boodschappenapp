@@ -1,5 +1,7 @@
 import "server-only";
+import { revalidateTag } from "next/cache";
 import { db, check } from "../db";
+import { TAG_PRIJZEN } from "../data";
 import { todayNL } from "../dates";
 import { sendToPerson } from "../push";
 import { prijsProfeet } from "./prijsprofeet";
@@ -109,6 +111,7 @@ export async function refreshOffers(source: PriceSource = prijsProfeet): Promise
       "verversdatum",
     );
   }
+  revalidateTag(TAG_PRIJZEN);
   return result;
 }
 
@@ -148,6 +151,7 @@ export async function relinkOffers(): Promise<{ checked: number; linked: number 
       check(await db().from("offers_cache").update({ product_id: pid }).in("id", ids.slice(i, i + 300)), "koppelen");
     }
   }
+  revalidateTag(TAG_PRIJZEN);
   return { checked: offers.length, linked };
 }
 

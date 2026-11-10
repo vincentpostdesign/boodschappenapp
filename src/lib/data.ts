@@ -1,12 +1,47 @@
 import "server-only";
+import { unstable_cache } from "next/cache";
 import { db, check } from "./db";
 import { chosenStoreId } from "./session";
 import { todayNL } from "./dates";
 import type { Department, ListItem, PersonId, Product, Store } from "./types";
 import type { KnownPrice } from "./prices/cheaper";
 
+// Cache-labels. Gegevens die zelden veranderen worden bewaard en pas opnieuw opgehaald na een wijziging
+// (revalidateTag in de acties) of uiterlijk na een uur.
+export const TAG_CATALOGUS = "catalogus"; // winkels, afdelingen, vaste producten, afdelingskoppelingen
+export const TAG_PRIJZEN = "prijzen"; // bonprijzen en gekoppelde acties
+
+const cachedStores = unstable_cache(
+  async () => check(await db().from("stores").select("*").order("sort_order"), "winkels ophalen") as Store[],
+  ["stores-v1"],
+  { tags: [TAG_CATALOGUS], revalidate: 3600 },
+);
+const cachedDepartments = unstable_cache(
+  async () => check(await db().from("departments").select("*").order("sort_order"), "afdelingen ophalen") as Department[],
+  ["departments-v1"],
+  { tags: [TAG_CATALOGUS], revalidate: 3600 },
+);
+const cachedProducts = unstable_cache(
+  async () =>
+    check(
+      await db().from("products").select("*").order("name").order("description", { nullsFirst: true }),
+      "producten ophalen",
+    ) as Product[],
+  ["products-v1"],
+  { tags: [TAG_CATALOGUS], revalidate: 3600 },
+);
+const cachedProductDepartments = unstable_cache(
+  async () =>
+    check(
+      await db().from("product_store_department").select("product_id, store_id, department_id"),
+      "afdelingskoppeling ophalen",
+    ) as { product_id: string; store_id: string; department_id: string }[],
+  ["psd-v1"],
+  { tags: [TAG_CATALOGUS], revalidate: 3600 },
+);
+
 export async function getStores(): Promise<Store[]> {
-  return check(await db().from("stores").select("*").order("sort_order"), "winkels ophalen") as Store[];
+  return cachedStores();
 }
 
 /** De gekozen winkel (cookie), anders de standaardwinkel. */
@@ -19,24 +54,17 @@ export async function getActiveStore(stores?: Store[]): Promise<{ store: Store; 
 }
 
 export async function getDepartments(storeId: string): Promise<Department[]> {
-  return check(
-    await db().from("departments").select("*").eq("store_id", storeId).order("sort_order"),
-    "afdelingen ophalen",
-  ) as Department[];
+  return (await cachedDepartments()).filter((d) => d.store_id === storeId);
 }
 
 export async function getProducts(opts: { includeHidden?: boolean } = {}): Promise<Product[]> {
-  let q = db().from("products").select("*").order("name").order("description", { nullsFirst: true });
-  if (!opts.includeHidden) q = q.eq("hidden", false);
-  return check(await q, "producten ophalen") as Product[];
+  const all = await cachedProducts();
+  return opts.includeHidden ? all : all.filter((p) => !p.hidden);
 }
 
 /** product_id -> department_id voor één winkel. */
 export async function getProductDepartments(storeId: string): Promise<Map<string, string>> {
-  const rows = check(
-    await db().from("product_store_department").select("product_id, department_id").eq("store_id", storeId),
-    "afdelingskoppeling ophalen",
-  ) as { product_id: string; department_id: string }[];
+  const rows = (await cachedProductDepartments()).filter((r) => r.store_id === storeId);
   return new Map(rows.map((r) => [r.product_id, r.department_id]));
 }
 
@@ -52,7 +80,16 @@ export async function getActiveItems(): Promise<ListItem[]> {
  * aan een vast product gekoppeld zijn. Per product/winkel telt de laagste.
  */
 export async function getKnownPrices(): Promise<KnownPrice[]> {
-  const today = todayNL();
+  return cachedKnownPrices(todayNL());
+}
+
+const cachedKnownPrices = unstable_cache(
+  async (today: string) => loadKnownPrices(today),
+  ["known-prices-v1"],
+  { tags: [TAG_PRIJZEN], revalidate: 3600 },
+);
+
+async function loadKnownPrices(today: string): Promise<KnownPrice[]> {
   const [ref, offers] = await Promise.all([
     db().from("product_prices").select("product_id, store_id, price"),
     db()

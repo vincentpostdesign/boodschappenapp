@@ -6,6 +6,7 @@ import { redirect } from "next/navigation";
 import { db, check } from "@/lib/db";
 import { LONG_COOKIE, PERSON_COOKIE, STORE_COOKIE, isPersonId, requirePerson } from "@/lib/session";
 import { matchProduct } from "@/lib/route";
+import { getProducts } from "@/lib/data";
 import { ACCESS_COOKIE, verifyAccessToken } from "@/lib/access";
 import type { Product } from "@/lib/types";
 
@@ -47,7 +48,7 @@ export async function addFreeItem(text: string, quantity?: number) {
   const name = text.trim().replace(/\s+/g, " ");
   if (!name) return;
   if (name.length > 120) throw new Error("Naam is te lang");
-  const products = check(await db().from("products").select("*").eq("hidden", false), "producten") as Product[];
+  const products = await getProducts();
   const match = matchProduct(name, products);
   if (match && (await productIdsOnList()).has(match.id)) return refresh();
   check(

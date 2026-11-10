@@ -1,6 +1,7 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
+import { revalidatePath, revalidateTag } from "next/cache";
+import { TAG_PRIJZEN } from "@/lib/data";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { db, check } from "@/lib/db";
@@ -80,6 +81,7 @@ export async function saveReceipt(input: ReceiptInput): Promise<{ error?: string
       );
     }
   }
+  revalidateTag(TAG_PRIJZEN);
   revalidatePath("/", "layout");
   redirect("/bonnen");
 }
@@ -89,6 +91,7 @@ export async function deleteReceipt(id: string) {
   const row = check(await db().from("receipts").select("photo_path").eq("id", id).maybeSingle(), "bon") as { photo_path: string } | null;
   check(await db().from("receipts").delete().eq("id", id), "bon verwijderen");
   if (row?.photo_path) await db().storage.from("fotos").remove([row.photo_path]);
+  revalidateTag(TAG_PRIJZEN);
   revalidatePath("/", "layout");
   redirect("/bonnen");
 }
