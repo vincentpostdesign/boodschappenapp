@@ -75,7 +75,7 @@ export function ReceiptEditor({
         </div>
       )}
 
-      <div className="grid grid-cols-2 gap-3 rounded-2xl border border-line bg-surface p-4 md:grid-cols-3">
+      <div className="grid grid-cols-2 gap-3 rounded-2xl border border-line bg-surface p-4 md:grid-cols-3 [&>*]:min-w-0">
         <label className="block">
           <span className="mb-1 block text-sm font-medium text-muted">Winkel</span>
           <select value={storeId} onChange={(e) => setStoreId(e.target.value)} className={field}>
@@ -132,7 +132,7 @@ export function ReceiptEditor({
                 aria-label="Vast product"
                 className={`${field} min-w-0 text-sm ${r.product_id ? "text-ink" : "text-muted"}`}
               >
-                <option value="">Geen vast product</option>
+                <option value="">Koppelen…</option>
                 {products.map((p) => (
                   <option key={p.id} value={p.id}>{p.label}</option>
                 ))}
