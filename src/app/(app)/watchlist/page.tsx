@@ -17,6 +17,7 @@ type Item = {
   brand: string | null;
   content: string | null;
   photo_path: string | null;
+  image_url: string | null;
   max_price: number | null;
   min_discount_pct: number | null;
 };
@@ -41,7 +42,7 @@ export default async function WatchlistPage({ searchParams }: { searchParams: Pr
   const sp = await searchParams;
   const today = todayNL();
   const [itemsRes, hitsRes, stores, mode, refreshedAt] = await Promise.all([
-    db().from("watchlist_items").select("id, name, brand, content, photo_path, max_price, min_discount_pct").order("name"),
+    db().from("watchlist_items").select("id, name, brand, content, photo_path, image_url, max_price, min_discount_pct").order("name"),
     db()
       .from("watchlist_hits")
       .select("id, watchlist_item_id, offer:offers_cache!inner(name, store_id, price, original_price, promo_label, valid_from, valid_until, status, quantity)")
@@ -53,7 +54,7 @@ export default async function WatchlistPage({ searchParams }: { searchParams: Pr
   const items = check(itemsRes, "watchlist") as Item[];
   const hits = (check(hitsRes, "treffers") as unknown as Hit[]).filter((h) => h.offer);
   const storeNames = Object.fromEntries(stores.map((s) => [s.id, s.name]));
-  const thumbs = Object.fromEntries(await Promise.all(items.map(async (i) => [i.id, await photoUrl(i.photo_path)] as const)));
+  const thumbs = Object.fromEntries(await Promise.all(items.map(async (i) => [i.id, i.image_url ?? (await photoUrl(i.photo_path))] as const)));
 
   const view = items.map((i) => ({
     id: i.id,

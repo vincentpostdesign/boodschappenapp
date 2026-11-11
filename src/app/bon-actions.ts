@@ -89,8 +89,10 @@ export async function saveReceipt(input: ReceiptInput): Promise<{ error?: string
   redirect("/bonnen");
 }
 
-export async function deleteReceipt(id: string) {
+export async function deleteReceipt(id: string, confirmation: string) {
   await requirePerson();
+  // Tweede stap: alleen wissen als in de app WISSEN is getypt.
+  if (confirmation !== "WISSEN") throw new Error("Typ WISSEN om de bon te verwijderen");
   const row = check(await db().from("receipts").select("photo_path").eq("id", id).maybeSingle(), "bon") as { photo_path: string } | null;
   check(await db().from("receipts").delete().eq("id", id), "bon verwijderen");
   if (row?.photo_path) await db().storage.from("fotos").remove([row.photo_path]);

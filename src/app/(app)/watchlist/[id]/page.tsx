@@ -29,7 +29,7 @@ export default async function WatchItemPage({
     <div className="space-y-4">
       <BackLink href="/watchlist" label="Watchlist" />
       <h1 className="text-2xl font-semibold tracking-tight">{item ? [item.brand, item.name].filter(Boolean).join(" ") : "Product volgen"}</h1>
-      <WatchForm item={item} photo={await photoUrl(item?.photo_path ?? null)} startWithCamera={isNew && foto === "1"} canRecognize={visionAvailable()} />
+      <WatchForm item={item} photo={await photoUrl(item?.photo_path ?? null)} barcodePhoto={await photoUrl(item?.barcode_path ?? null)} startWithCamera={isNew && foto === "1"} canRecognize={visionAvailable()} />
     </div>
   );
 }

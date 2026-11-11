@@ -13,12 +13,12 @@ describe("cleanLines", () => {
       { naam: "", aantal: 1, prijs: 1 },
     ]);
     expect(lines).toEqual([
-      { raw_name: "HALFV MELK 2L", quantity: 1, price: 1.99 },
-      { raw_name: "KWARK MAGER", quantity: 2, price: 2.58 },
+      { raw_name: "Halfv melk 2L", quantity: 1, price: 1.99 },
+      { raw_name: "Kwark mager", quantity: 2, price: 2.58 },
     ]);
   });
   it("houdt kortingsregels (negatief) en herstelt een ongeldig aantal", () => {
-    expect(cleanLines([{ naam: "KORTING", aantal: 0, prijs: -0.5 }])).toEqual([{ raw_name: "KORTING", quantity: 1, price: -0.5 }]);
+    expect(cleanLines([{ naam: "KORTING", aantal: 0, prijs: -0.5 }])).toEqual([{ raw_name: "Korting", quantity: 1, price: -0.5 }]);
   });
   it("laat onzinbedragen weg", () => {
     expect(cleanLines([{ naam: "X", aantal: 1, prijs: Number.NaN }, { naam: "Y", aantal: 1, prijs: 12345 }])).toEqual([]);

@@ -2,7 +2,29 @@ import { notFound } from "next/navigation";
 import { db, check } from "@/lib/db";
 import { requirePerson } from "@/lib/session";
 import { getProducts, getStores } from "@/lib/data";
-import { photoUrl } from "@/lib/vision";
+import { photoUrl, tidyNames, visionAvailable } from "@/lib/vision";
+import { niceCase } from "@/lib/receipt";
+
+/**
+ * Oudere bonnen staan nog in HOOFDLETTERS: bij openen eenmalig omzetten naar gewone schrijfwijze
+ * (Claude zet merknamen goed; zonder sleutel of bij een fout gewoon eerste letter hoofdletter) en opslaan.
+ */
+async function tidyStoredNames<L extends { id: string; raw_name: string }>(lines: L[]): Promise<L[]> {
+  const caps = lines.filter((l) => niceCase(l.raw_name) !== l.raw_name);
+  if (!caps.length) return lines;
+  let names = caps.map((l) => niceCase(l.raw_name));
+  if (visionAvailable()) {
+    try {
+      const tidy = await tidyNames(caps.map((l) => l.raw_name));
+      names = tidy.map((n, i) => (niceCase(n) === n ? n : names[i]));
+    } catch {
+      /* eenvoudige omzetting volstaat */
+    }
+  }
+  const byId = new Map(caps.map((l, i) => [l.id, names[i]]));
+  await Promise.all(caps.map((l) => db().from("receipt_lines").update({ raw_name: byId.get(l.id)! }).eq("id", l.id)));
+  return lines.map((l) => (byId.has(l.id) ? { ...l, raw_name: byId.get(l.id)! } : l));
+}
 import { ReceiptEditor } from "@/components/bonnen/ReceiptEditor";
 import { BackLink } from "@/components/BackLink";
 
@@ -16,7 +38,7 @@ export default async function BonPage({ params, searchParams }: { params: Promis
   if (!/^[0-9a-f-]{36}$/.test(id)) notFound();
   const [receiptRes, linesRes, stores, products] = await Promise.all([
     db().from("receipts").select("*").eq("id", id).maybeSingle(),
-    db().from("receipt_lines").select("raw_name, quantity, price, product_id").eq("receipt_id", id).order("line_no"),
+    db().from("receipt_lines").select("id, raw_name, quantity, price, product_id").eq("receipt_id", id).order("line_no"),
     getStores(),
     getProducts({ includeHidden: true }),
   ]);
@@ -29,11 +51,13 @@ export default async function BonPage({ params, searchParams }: { params: Promis
     status: string;
   } | null;
   if (!receipt) notFound();
-  const lines = (check(linesRes, "regels") as { raw_name: string; quantity: number; price: number; product_id: string | null }[]).map((l) => ({
-    ...l,
-    quantity: Number(l.quantity),
-    price: Number(l.price),
-  }));
+  const lines = await tidyStoredNames(
+    (check(linesRes, "regels") as { id: string; raw_name: string; quantity: number; price: number; product_id: string | null }[]).map((l) => ({
+      ...l,
+      quantity: Number(l.quantity),
+      price: Number(l.price),
+    })),
+  );
 
   return (
     <div className="space-y-4">

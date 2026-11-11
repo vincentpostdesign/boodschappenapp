@@ -8,6 +8,7 @@ import { z } from "zod";
 import { db, check } from "@/lib/db";
 import { requirePerson } from "@/lib/session";
 import { shortDate } from "@/lib/dates";
+import { isAllowedImageUrl } from "@/lib/product-image";
 
 function refresh() {
   revalidatePath("/", "layout");
@@ -23,6 +24,8 @@ const watchSchema = z.object({
   content: z.string().trim().max(60),
   ean: z.string().trim().regex(/^(\d{8}|\d{12,14})?$/, "EAN bestaat uit 8 of 13 cijfers"),
   photo_path: z.string().max(200),
+  barcode_path: z.string().max(200),
+  image_url: z.string().max(500).refine((v) => !v || isAllowedImageUrl(v), "Deze afbeelding kan niet worden bewaard"),
   max_price: optNumber(0, 1000),
   min_discount_pct: optNumber(0, 100),
 });
@@ -32,7 +35,7 @@ export type WatchFormState = { error?: string } | undefined;
 export async function saveWatchItem(_prev: WatchFormState, formData: FormData): Promise<WatchFormState> {
   const person = await requirePerson();
   const id = (formData.get("id") as string) || null;
-  const parsed = watchSchema.safeParse(Object.fromEntries(["name", "brand", "content", "ean", "photo_path", "max_price", "min_discount_pct"].map((k) => [k, formData.get(k) ?? ""])));
+  const parsed = watchSchema.safeParse(Object.fromEntries(["name", "brand", "content", "ean", "photo_path", "barcode_path", "image_url", "max_price", "min_discount_pct"].map((k) => [k, formData.get(k) ?? ""])));
   if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Controleer de velden" };
   const v = parsed.data;
   const row = {
@@ -43,6 +46,8 @@ export async function saveWatchItem(_prev: WatchFormState, formData: FormData): 
     max_price: v.max_price,
     min_discount_pct: v.min_discount_pct == null ? null : Math.round(v.min_discount_pct),
     ...(v.photo_path ? { photo_path: v.photo_path } : {}),
+    ...(v.barcode_path ? { barcode_path: v.barcode_path } : {}),
+    image_url: v.image_url || null, // leeg = officiële afbeelding weggehaald
   };
   if (id) {
     check(await db().from("watchlist_items").update(row).eq("id", id), "watchlist opslaan");

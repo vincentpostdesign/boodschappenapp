@@ -1,14 +1,17 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { currentPerson } from "@/lib/session";
-import { prepareImage, readProductPhoto, storePhoto, visionAvailable } from "@/lib/vision";
+import { prepareImage, readBarcodePhoto, readProductPhoto, storePhoto, visionAvailable } from "@/lib/vision";
+import { validEan } from "@/lib/ean";
 
 export const maxDuration = 60;
 const MAX_BYTES = 15 * 1024 * 1024;
 
-/** Productfoto: opslaan en (als de Claude-sleutel er is) uitlezen. */
+/** Productfoto (voorkant) of foto van de streepjescode: opslaan en (als de Claude-sleutel er is) uitlezen. */
 export async function POST(req: NextRequest) {
   if (!(await currentPerson())) return NextResponse.json({ error: "Kies eerst wie je bent" }, { status: 401 });
-  const file = (await req.formData()).get("foto");
+  const form = await req.formData();
+  const file = form.get("foto");
+  const barcode = form.get("soort") === "streepjescode";
   if (!(file instanceof File) || !file.type.startsWith("image/")) return NextResponse.json({ error: "Geen foto ontvangen" }, { status: 400 });
   if (file.size > MAX_BYTES) return NextResponse.json({ error: "Foto is te groot (max. 15 MB)" }, { status: 413 });
 
@@ -23,6 +26,13 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ photoPath, read: null, warning: "Automatisch herkennen staat uit (geen Claude-sleutel). Vul de gegevens zelf in." });
   }
   try {
+    if (barcode) {
+      const r = await readBarcodePhoto(jpeg);
+      const ean = r.ean?.replace(/\D/g, "") ?? null;
+      if (!ean) return NextResponse.json({ photoPath, ean: null, warning: `Streepjescode niet leesbaar: ${r.toelichting} Probeer dichterbij en recht van voren.` });
+      if (!validEan(ean)) return NextResponse.json({ photoPath, ean: null, warning: `Gelezen: ${ean}, maar het controlecijfer klopt niet. Maak een scherpere foto of typ de code over.` });
+      return NextResponse.json({ photoPath, ean });
+    }
     const read = await readProductPhoto(jpeg);
     return NextResponse.json({ photoPath, read });
   } catch (e) {

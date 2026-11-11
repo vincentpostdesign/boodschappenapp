@@ -328,3 +328,8 @@ create index if not exists gifts_occasion_idx on gifts (occasion, bought);
 
 alter table gifts enable row level security;
 grant all on gifts to service_role;
+
+-- ===== supabase/migrations/20261111000000_watchlist_fotos.sql =====
+-- Watchlist: tweede foto (streepjescode) en een officiële productafbeelding van internet (Open Food/Products Facts).
+alter table watchlist_items add column if not exists barcode_path text check (length(barcode_path) <= 200);
+alter table watchlist_items add column if not exists image_url text check (length(image_url) <= 500);

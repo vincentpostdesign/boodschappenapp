@@ -9,11 +9,21 @@ const NOT_A_PRODUCT = /^(sub)?totaal|^te betalen|^btw|^pin(nen|betaling)?\b|^con
 
 const round2 = (n: number) => Math.round(n * 100) / 100;
 
+/**
+ * Alleen-hoofdletters ("HALFV MELK 2L") wordt gewone schrijfwijze ("Halfv melk 2L").
+ * Namen die al kleine letters bevatten blijven zoals ze zijn (Claude levert merknamen al met hoofdletter).
+ */
+export function niceCase(name: string): string {
+  if (!/[A-ZÀ-Þ]/.test(name) || /[a-zß-ÿ]/.test(name)) return name;
+  const lower = name.toLowerCase().replace(/(\d)l\b/g, "$1L");
+  return lower.charAt(0).toUpperCase() + lower.slice(1);
+}
+
 /** Schoont uitgelezen regels op: lege/onzinnige regels weg, bedragen afgerond, aantal minstens 0,001. */
 export function cleanLines(lines: RawLine[]): CleanLine[] {
   const out: CleanLine[] = [];
   for (const l of lines) {
-    const name = (l.naam ?? "").replace(/\s+/g, " ").trim();
+    const name = niceCase((l.naam ?? "").replace(/\s+/g, " ").trim());
     if (!name || NOT_A_PRODUCT.test(name)) continue;
     const price = round2(Number(l.prijs));
     if (!Number.isFinite(price) || Math.abs(price) > 1000) continue;

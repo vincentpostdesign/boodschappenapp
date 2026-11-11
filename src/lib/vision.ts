@@ -88,6 +88,42 @@ Geef de productnaam als algemene Nederlandse soortnaam (bijv. 'Wasmiddelpods', '
   );
 }
 
+export const BarcodePhotoSchema = z.object({
+  ean: z.string().nullable().describe("De cijfers onder de streepjescode (8, 12 of 13 cijfers), zonder spaties; null als niet leesbaar"),
+  toelichting: z.string().describe("Eén korte zin: wat je ziet, of waarom het niet lukte"),
+});
+export type BarcodePhoto = z.infer<typeof BarcodePhotoSchema>;
+
+export async function readBarcodePhoto(jpeg: Buffer): Promise<BarcodePhoto> {
+  return readImage(
+    jpeg,
+    BarcodePhotoSchema,
+    `Dit is een foto van de streepjescode (EAN) op een supermarktproduct. Lees de cijfers die onder of naast de streepjes staan.
+Neem alle cijfers over, ook het losse eerste cijfer links. Verzin niets: is een cijfer onleesbaar, geef dan null.`,
+  );
+}
+
+/** Bestaande namen in alleen-hoofdletters omzetten naar gewone schrijfwijze (merknamen met hoofdletter). */
+export async function tidyNames(names: string[]): Promise<string[]> {
+  if (!names.length) return [];
+  const Schema = z.object({ namen: z.array(z.string()).describe("Zelfde volgorde en aantal als de invoer") });
+  const res = await anthropic().beta.messages.parse({
+    model: MODEL,
+    max_tokens: 8000,
+    output_config: { effort: "low", format: zodOutputFormat(Schema) },
+    messages: [
+      {
+        role: "user",
+        content: `Dit zijn productnamen van een Nederlandse kassabon, in hoofdletters. Zet ze in gewone schrijfwijze: eerste letter hoofdletter, de rest klein, merk- en eigennamen met hoofdletter (AH, Coca Cola, Lenor). Verander verder niets: geen afkortingen uitschrijven, geen woorden toevoegen of weglaten. Eenheden zoals 2L en 500g blijven zo.\n\n${JSON.stringify(names)}`,
+      },
+    ],
+  });
+  const out = res.parsed_output?.namen;
+  // Alleen gebruiken als het echt dezelfde namen zijn (hoofdletterongevoelig gelijk).
+  if (!out || out.length !== names.length) return names;
+  return names.map((n, i) => (out[i].toLowerCase().replace(/\s+/g, " ") === n.toLowerCase().replace(/\s+/g, " ") ? out[i] : n));
+}
+
 // ---------- bonnetje ----------
 
 export const ReceiptSchema = z.object({
@@ -97,7 +133,7 @@ export const ReceiptSchema = z.object({
   regels: z
     .array(
       z.object({
-        naam: z.string().describe("Productnaam precies zoals op de bon"),
+        naam: z.string().describe("Productnaam zoals op de bon, in gewone schrijfwijze (geen alleen-hoofdletters), bijv. 'Halfv melk 2L', 'Coca-Cola zero'"),
         aantal: z.number().describe("Aantal stuks (of kilo bij gewogen producten); 1 als niet vermeld"),
         prijs: z.number().describe("Regelbedrag in euro na korting op die regel; negatief voor statiegeld-retour of korting"),
       }),
@@ -112,7 +148,8 @@ export async function readReceiptPhoto(jpeg: Buffer): Promise<ReceiptRead> {
     jpeg,
     ReceiptSchema,
     `Dit is een foto van een kassabon van een Nederlandse supermarkt. Lees de winkel, de datum, het totaalbedrag en alle productregels.
-- Neem productnamen letterlijk over zoals ze op de bon staan (afkortingen niet uitschrijven).
+- Neem productnamen woord voor woord over zoals ze op de bon staan (afkortingen niet uitschrijven), maar schrijf ze in gewone schrijfwijze:
+  eerste letter hoofdletter, de rest klein; merk- en eigennamen met hoofdletter (bijv. 'HALFV MELK 2L' → 'Halfv melk 2L', 'AH PINDAKAAS' → 'AH pindakaas', 'COCA COLA ZERO' → 'Coca Cola zero').
 - Staat er een aantal (bijv. '2 x 1,29'), zet dan aantal 2 en prijs 2,58 (het regelbedrag).
 - Een kortingsregel direct onder een product: verwerk die als aparte regel met negatief bedrag.
 - Sla subtotaal, btw, pinbetaling, wisselgeld en spaaracties over.

@@ -8,9 +8,9 @@ Gezamenlijke boodschappenlijst van Vincent en Marleen. Mobile-first webapp (PWA)
 |---|---|
 | **Lijst** (`/`) | Producten in de looproute van de gekozen winkel, per afdeling. Afvinken, aantal, wie/wanneer, sectie Gehaald, icoon *goedkoper elders*. |
 | **Vast** (`/vast`) | Vaste producten met één tik op de lijst, *Zet alle erop*, zoeken. |
-| **Watchlist** (`/watchlist`) | Producten volgen op aanbiedingen (merk, prijsgrens, minimale korting), toevoegen met een foto (Claude leest de verpakking). |
+| **Watchlist** (`/watchlist`) | Producten volgen op aanbiedingen (merk, prijsgrens, minimale korting). Foto van voorkant en streepjescode (Claude leest verpakking en EAN), optioneel de officiële afbeelding uit Open Food Facts. |
 | **Cadeaulijst** (`/beheer/cadeaus`) | Cadeau-ideeën voor Sint, kerst en verjaardagen; per ontvanger, met prijs/link, afvinken als gekocht, optioneel geheim voor de ander. |
-| **Bonnen** (`/bonnen`) | Bon fotograferen → foto meteen bewaard → Claude leest regels uit → controleren en opslaan. Leert bonnamen en Aldi-prijzen. |
+| **Bonnen** (`/bonnen`) | Bon fotograferen → foto meteen bewaard → Claude leest regels uit (gewone schrijfwijze) → controleren en opslaan, regels op de boodschappenlijst zetten. Leert bonnamen en Aldi-prijzen. Verwijderen met WISSEN. |
 | **Dashboard** (`/dashboard`) | Uitgaven per winkel en per week/maand, vaak/soms gekocht, *vast maken*. |
 | **Beheer** (`/beheer`) | Wie doet wanneer de boodschappen, vaste producten, looproute per winkel, meldingen op dit apparaat. |
 
