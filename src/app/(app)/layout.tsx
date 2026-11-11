@@ -4,6 +4,7 @@ import { ServiceWorker } from "@/components/ServiceWorker";
 import { AvatarProvider } from "@/components/Avatars";
 import { BackToTop } from "@/components/BackToTop";
 import { LiveSync } from "@/components/LiveSync";
+import { ViewportFix } from "@/components/ViewportFix";
 import { getAvatarUrls } from "@/lib/people";
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
@@ -18,6 +19,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       <BottomNav />
       <BackToTop />
       <LiveSync />
+      <ViewportFix />
       <ServiceWorker />
     </AvatarProvider>
   );
