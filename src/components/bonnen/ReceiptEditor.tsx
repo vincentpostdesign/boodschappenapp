@@ -9,7 +9,7 @@ import { IconCheck, IconList, IconPlus, IconTrash } from "../icons";
 type Line = { raw_name: string; quantity: number; price: number; product_id: string | null };
 type Receipt = { id: string; store_id: string | null; purchased_on: string | null; total: number | null; status: string };
 
-const field = "h-11 w-full rounded-xl border border-line bg-surface px-3 outline-none focus:border-accent";
+const field = "h-11 w-full rounded-xl border border-line bg-surface px-3 text-[16px] outline-none focus:border-accent";
 const num = (s: string) => {
   const n = Number(s.replace(",", "."));
   return Number.isFinite(n) ? n : NaN;

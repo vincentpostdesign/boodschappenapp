@@ -91,6 +91,14 @@ input[type="time"] {
 input[type="date"]::-webkit-date-and-time-value {
   text-align: left;
   min-height: 1.5em;
+  margin: 0;
+}
+/* iOS zet de datum bovenin het veld: verticaal centreren, gelijk met de keuzelijsten ernaast */
+input[type="date"],
+input[type="time"] {
+  padding-top: 0;
+  padding-bottom: 0;
+  line-height: calc(2.75rem - 2px); /* hoogte h-11 min de rand */
 }
 
 /* Alleen staand op de telefoon: in liggende stand een melding (iOS negeert de stand uit het manifest) */
