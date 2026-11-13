@@ -38,7 +38,7 @@ export default async function BeheerPage() {
         </h2>
         <ShopperPlanner schedule={schedule} todayIndex={weekdayIndex(today)} todayLabel={longDate(today).replace(/^\S+\s/, "")} />
         <p className="px-1 text-xs text-muted">
-          Dit rooster geldt elke week. Wie wordt ingeroosterd krijgt een melding, en op zijn dag om 8:00 een herinnering.
+          Dit rooster geldt elke week. Wie wordt ingeroosterd krijgt een melding. Op die dag volgt om 8:00 een herinnering, en om 15:00 nog een als er dan nog iets op de lijst staat.
         </p>
       </section>
 
