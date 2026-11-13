@@ -92,6 +92,9 @@ export function GiftList({ gifts, me, initial }: { gifts: Gift[]; me: PersonId; 
               <h2 className="flex items-baseline justify-between px-1 text-xs font-bold uppercase tracking-wider text-muted">
                 <span>{who ? `Voor ${who}` : "Nog niet bepaald voor wie"}</span>
                 <span className="font-medium normal-case tracking-normal tabular-nums">
+                  {items.some((g) => g.price != null) && (
+                    <span className="font-semibold text-ink">{euro(items.reduce((s, g) => s + (g.price ?? 0), 0))} · </span>
+                  )}
                   {items.filter((g) => g.bought).length}/{items.length} gekocht
                 </span>
               </h2>
