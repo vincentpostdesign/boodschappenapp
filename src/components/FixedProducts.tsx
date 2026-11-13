@@ -7,14 +7,26 @@ import { IconPlus, IconSearch } from "./icons";
 import { Stepper } from "./Stepper";
 import { SwipeToDelete } from "./SwipeToDelete";
 import { ConfirmWipe } from "./ConfirmWipe";
-import { removeFixedProduct } from "@/app/beheer-actions";
+import { removeFixedProduct, updateFixedProduct } from "@/app/beheer-actions";
 
 /** onList = aantal op de lijst (0 = staat er niet op). */
-type P = { id: string; name: string; description: string | null; quantity: number; onList: number };
+type P = { id: string; name: string; description: string | null; quantity: number; onList: number; departmentId: string };
 type Group = { key: string; name: string; products: P[] };
+type Dep = { id: string; name: string };
 
-export function FixedProducts({ groups, storeName }: { groups: Group[]; storeName: string }) {
+export function FixedProducts({
+  groups,
+  storeName,
+  storeId,
+  departments,
+}: {
+  groups: Group[];
+  storeName: string;
+  storeId: string;
+  departments: Dep[];
+}) {
   const [query, setQuery] = useState("");
+  const [editing, setEditing] = useState<string | null>(null);
   const [, start] = useTransition();
   const [swipeOpen, setSwipeOpen] = useState<string | null>(null);
   const [confirm, setConfirm] = useState<P | null>(null);
@@ -67,7 +79,7 @@ export function FixedProducts({ groups, storeName }: { groups: Group[]; storeNam
           {remaining.length === 0 ? "Alle vaste producten staan op de lijst" : `Zet alle vaste producten erop (${remaining.length})`}
         </button>
         <p className="px-1 text-xs text-muted">
-          Ingedeeld volgens de looproute van de {storeName}. Met + zet je iets op de lijst; tik nog eens voor meer. Veeg naar links om een vast product te verwijderen.
+          Ingedeeld volgens de looproute van de {storeName}. Met + zet je iets op de lijst. Tik op een product om het aan te passen; veeg naar links om het te verwijderen.
         </p>
       </header>
       {confirm && (
@@ -107,13 +119,19 @@ export function FixedProducts({ groups, storeName }: { groups: Group[]; storeNam
                       label={p.name}
                     >
                   <div className={`flex min-h-16 items-center gap-3 px-4 py-2 ${n ? "bg-[color-mix(in_srgb,var(--accent-soft)_50%,var(--surface))]" : "bg-surface"}`}>
-                    <span className="min-w-0 flex-1">
+                    <button
+                      type="button"
+                      onClick={() => setEditing(editing === p.id ? null : p.id)}
+                      aria-expanded={editing === p.id}
+                      aria-label={`${p.name} aanpassen`}
+                      className="min-w-0 flex-1 py-1 text-left"
+                    >
                       <span className="block text-[17px] font-medium leading-tight">{p.name}</span>
                       <span className="block truncate text-sm text-muted">
                         {n ? <span className="font-medium text-accent">Op de lijst</span> : p.description}
                         {n && p.description ? ` · ${p.description}` : ""}
                       </span>
-                    </span>
+                    </button>
                     {n ? (
                       <Stepper value={n} min={0} label={p.name} onChange={(next) => change(p, next)} />
                     ) : (
@@ -128,6 +146,9 @@ export function FixedProducts({ groups, storeName }: { groups: Group[]; storeNam
                     )}
                   </div>
                     </SwipeToDelete>
+                    {editing === p.id && (
+                      <EditFixed product={p} storeId={storeId} storeName={storeName} departments={departments} onClose={() => setEditing(null)} />
+                    )}
                   </li>
                 );
               })}
@@ -136,5 +157,83 @@ export function FixedProducts({ groups, storeName }: { groups: Group[]; storeNam
         ))}
       </div>
     </div>
+  );
+}
+
+/** Tik op een vast product: naam, omschrijving, standaard aantal en afdeling (in de gekozen winkel) aanpassen. */
+function EditFixed({
+  product: p,
+  storeId,
+  storeName,
+  departments,
+  onClose,
+}: {
+  product: P;
+  storeId: string;
+  storeName: string;
+  departments: Dep[];
+  onClose: () => void;
+}) {
+  const [name, setName] = useState(p.name);
+  const [description, setDescription] = useState(p.description ?? "");
+  const [quantity, setQuantity] = useState(p.quantity);
+  const [departmentId, setDepartmentId] = useState(p.departmentId);
+  const [error, setError] = useState<string | null>(null);
+  const [pending, start] = useTransition();
+  const field = "h-11 w-full min-w-0 rounded-xl border border-line bg-surface px-3 text-[16px] outline-none focus:border-accent";
+  const save = (e: React.FormEvent) => {
+    e.preventDefault();
+    start(async () => {
+      const r = await updateFixedProduct(p.id, { name, description, quantity, storeId, departmentId });
+      if (r?.error) return setError(r.error);
+      onClose();
+    });
+  };
+  return (
+    <form onSubmit={save} className="space-y-2 border-t border-line bg-surface-2/60 px-4 py-3">
+      <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 [&>*]:min-w-0">
+        <label className="block">
+          <span className="mb-1 block px-1 text-xs font-medium text-muted">Naam</span>
+          <input value={name} onChange={(e) => setName(e.target.value)} required maxLength={80} autoComplete="off" className={field} />
+        </label>
+        <label className="block">
+          <span className="mb-1 block px-1 text-xs font-medium text-muted">Omschrijving</span>
+          <input
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+            maxLength={160}
+            placeholder="Merk, smaak, grootte"
+            autoComplete="off"
+            className={field}
+          />
+        </label>
+      </div>
+      <div className="grid grid-cols-[auto_1fr] items-end gap-3 [&>*]:min-w-0">
+        <div>
+          <span className="mb-1 block px-1 text-xs font-medium text-muted">Standaard aantal</span>
+          <Stepper value={quantity} min={1} label={`${p.name} standaard aantal`} onChange={setQuantity} />
+        </div>
+        <label className="block">
+          <span className="mb-1 block px-1 text-xs font-medium text-muted">Afdeling bij de {storeName}</span>
+          <select value={departmentId} onChange={(e) => setDepartmentId(e.target.value)} className={field}>
+            <option value="">Overig / geen</option>
+            {departments.map((d) => (
+              <option key={d.id} value={d.id}>
+                {d.name}
+              </option>
+            ))}
+          </select>
+        </label>
+      </div>
+      {error && <p className="text-sm text-danger">{error}</p>}
+      <div className="flex gap-2 pt-1">
+        <button type="button" onClick={onClose} className="h-11 flex-1 rounded-xl border border-line bg-surface text-[15px] font-medium">
+          Annuleren
+        </button>
+        <button disabled={pending || !name.trim()} className="h-11 flex-1 rounded-xl bg-accent text-[15px] font-semibold text-accent-ink disabled:opacity-50">
+          {pending ? "Opslaan…" : "Opslaan"}
+        </button>
+      </div>
+    </form>
   );
 }

@@ -27,8 +27,16 @@ export default async function VastPage() {
       description: p.description,
       quantity: p.default_quantity,
       onList: onList.get(p.id) ?? 0,
+      departmentId: mapping.get(p.id) ?? "",
     })),
   }));
 
-  return <FixedProducts groups={groups} storeName={store.name} />;
+  return (
+    <FixedProducts
+      groups={groups}
+      storeName={store.name}
+      storeId={store.id}
+      departments={departments.map((d) => ({ id: d.id, name: d.name }))}
+    />
+  );
 }

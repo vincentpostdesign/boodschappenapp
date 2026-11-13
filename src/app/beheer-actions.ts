@@ -165,6 +165,39 @@ export async function removeFixedProduct(id: string, confirmation: string) {
   refresh();
 }
 
+/**
+ * Vast product aanpassen vanaf het scherm Vast: naam, omschrijving, standaard aantal en de afdeling in de gekozen winkel.
+ * Openstaande lijstregels van dit product krijgen de nieuwe naam en omschrijving mee.
+ */
+export async function updateFixedProduct(
+  id: string,
+  input: { name: string; description: string; quantity: number; storeId: string; departmentId: string },
+): Promise<{ error?: string }> {
+  await requirePerson();
+  const name = input.name.trim().replace(/\s+/g, " ").slice(0, 80);
+  if (!name) return { error: "Naam is verplicht" };
+  const description = input.description.trim().replace(/\s+/g, " ").slice(0, 160) || null;
+  const qty = Math.max(1, Math.min(99, Math.round(Number(input.quantity) || 1)));
+  check(await db().from("products").update({ name, description, default_quantity: qty }).eq("id", id), "product opslaan");
+  check(
+    await db().from("list_items").update({ name, description }).eq("product_id", id).eq("archived", false),
+    "lijst bijwerken",
+  );
+  if (input.departmentId) {
+    const dep = check(await db().from("departments").select("id").eq("id", input.departmentId).eq("store_id", input.storeId).maybeSingle(), "afdeling");
+    if (dep) {
+      check(
+        await db().from("product_store_department").upsert({ product_id: id, store_id: input.storeId, department_id: input.departmentId }),
+        "afdeling opslaan",
+      );
+    }
+  } else {
+    check(await db().from("product_store_department").delete().eq("product_id", id).eq("store_id", input.storeId), "afdeling wissen");
+  }
+  refresh();
+  return {};
+}
+
 // ---------- afdelingen / looproute ----------
 
 async function storeDepartments(storeId: string) {
