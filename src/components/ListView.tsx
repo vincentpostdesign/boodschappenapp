@@ -3,7 +3,7 @@
 import { useOptimistic, useRef, useState, useTransition } from "react";
 import { newId, runOrQueue, usePendingOps } from "@/lib/offline-queue";
 import { PersonDot } from "./PersonDot";
-import { IconCheck, IconPlus, IconTag, IconTrash } from "./icons";
+import { IconCheck, IconPlus, IconTag } from "./icons";
 import { Stepper } from "./Stepper";
 import { SwipeToDelete } from "./SwipeToDelete";
 import type { PersonId } from "@/lib/types";
@@ -74,8 +74,15 @@ export function ListView({
     onRemove: () => onRemove(item),
   });
 
+  const pendingEdit = new Map(pending.flatMap((o) => (o.k === "edit" ? [[o.id, o] as const] : [])));
   const visible = (items: ViewItem[]) =>
-    items.filter((i) => !removed.has(i.id) && !pendingRemoved.has(i.id)).map((i) => (pendingQty.has(i.id) ? { ...i, quantity: pendingQty.get(i.id)! } : i));
+    items
+      .filter((i) => !removed.has(i.id) && !pendingRemoved.has(i.id))
+      .map((i) => (pendingQty.has(i.id) ? { ...i, quantity: pendingQty.get(i.id)! } : i))
+      .map((i) => {
+        const e = pendingEdit.get(i.id);
+        return e ? { ...i, name: e.name, description: e.note || null } : i;
+      });
   groups = groups.map((g) => ({ ...g, items: visible(g.items) }));
   done = visible(done);
   const all = [...groups.flatMap((g) => g.items), ...done];
@@ -220,33 +227,70 @@ function Row({
         {!checked && <Stepper value={qty} label={item.name} onChange={changeQty} />}
       </div>
       </SwipeToDelete>
-      {expanded && (
-        <div className="flex items-center justify-end gap-2 border-t border-line bg-surface-2/60 px-3 py-2">
-          {item.movable && !item.waiting && (
-            <label className="mr-auto flex min-w-0 items-center gap-2 text-sm text-muted">
-              <span className="shrink-0">Afdeling</span>
-              <select
-                defaultValue={item.category ?? "overig"}
-                onChange={(e) => start(() => setItemCategory(item.id, e.target.value))}
-                className="h-11 min-w-0 rounded-xl border border-line bg-surface px-2 text-[15px] text-ink"
-              >
-                {CATEGORIES.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.name}
-                  </option>
-                ))}
-              </select>
-            </label>
-          )}
-          <button
-            onClick={onRemove}
-            className="flex h-11 items-center gap-2 rounded-xl px-3 text-sm font-medium text-danger"
-          >
-            <IconTrash className="h-5 w-5" /> Van de lijst halen
-          </button>
-        </div>
-      )}
+      {expanded && <EditPanel item={item} onClose={onExpand} />}
     </li>
+  );
+}
+
+/** Tik op een product: naam, opmerking en afdeling wijzigen. Verwijderen gaat alleen door te vegen. */
+function EditPanel({ item, onClose }: { item: ViewItem; onClose: () => void }) {
+  const [name, setName] = useState(item.name);
+  const [note, setNote] = useState(item.description ?? "");
+  const [category, setCategory] = useState(item.category ?? "overig");
+  const [, start] = useTransition();
+  const field = "h-11 w-full min-w-0 rounded-xl border border-line bg-surface px-3 text-[16px] outline-none focus:border-accent";
+
+  const save = (e: React.FormEvent) => {
+    e.preventDefault();
+    const n = name.trim();
+    if (!n) return;
+    onClose();
+    if (n !== item.name || note.trim() !== (item.description ?? "")) {
+      void runOrQueue({ k: "edit", id: item.id, name: n, note: note.trim() });
+    }
+    if (item.movable && category !== (item.category ?? "overig")) start(() => setItemCategory(item.id, category));
+  };
+
+  return (
+    <form onSubmit={save} className="space-y-2 border-t border-line bg-surface-2/60 px-3 py-3">
+      <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 [&>*]:min-w-0">
+        <label className="block">
+          <span className="mb-1 block px-1 text-xs font-medium text-muted">Naam</span>
+          <input value={name} onChange={(e) => setName(e.target.value)} maxLength={120} required autoComplete="off" className={field} />
+        </label>
+        <label className="block">
+          <span className="mb-1 block px-1 text-xs font-medium text-muted">Opmerking</span>
+          <input
+            value={note}
+            onChange={(e) => setNote(e.target.value)}
+            maxLength={160}
+            placeholder="Bijv. merk, smaak, grootte"
+            autoComplete="off"
+            className={field}
+          />
+        </label>
+      </div>
+      {item.movable && !item.waiting && (
+        <label className="block">
+          <span className="mb-1 block px-1 text-xs font-medium text-muted">Afdeling</span>
+          <select value={category} onChange={(e) => setCategory(e.target.value)} className={field}>
+            {CATEGORIES.map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.name}
+              </option>
+            ))}
+          </select>
+        </label>
+      )}
+      <div className="flex gap-2 pt-1">
+        <button type="button" onClick={onClose} className="h-11 flex-1 rounded-xl border border-line bg-surface text-[15px] font-medium">
+          Annuleren
+        </button>
+        <button disabled={!name.trim()} className="h-11 flex-1 rounded-xl bg-accent text-[15px] font-semibold text-accent-ink disabled:opacity-50">
+          Opslaan
+        </button>
+      </div>
+    </form>
   );
 }
 

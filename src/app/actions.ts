@@ -166,6 +166,16 @@ export async function removeItem(itemId: string) {
   refresh();
 }
 
+/** Naam en opmerking van een regel op de lijst wijzigen (alleen deze regel, niet het vaste product). */
+export async function editItem(itemId: string, name: string, note: string) {
+  await requirePerson();
+  const n = name.trim().replace(/\s+/g, " ").slice(0, 120);
+  if (!n) throw new Error("Naam is verplicht");
+  const d = note.trim().replace(/\s+/g, " ").slice(0, 160);
+  check(await db().from("list_items").update({ name: n, description: d || null }).eq("id", itemId).eq("archived", false), "wijzigen");
+  refresh();
+}
+
 /** Losse regel met de hand naar een andere afdeling; de app onthoudt dat voor deze naam. */
 export async function setItemCategory(itemId: string, category: string) {
   await requirePerson();

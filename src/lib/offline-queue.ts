@@ -5,13 +5,14 @@
 // Het scherm toont ze meteen alsof ze al gelukt zijn.
 
 import { useSyncExternalStore } from "react";
-import { addFreeItem, removeItem, setChecked, setQuantity } from "@/app/actions";
+import { addFreeItem, editItem, removeItem, setChecked, setQuantity } from "@/app/actions";
 
 export type Op =
   | { k: "check"; id: string; v: boolean }
   | { k: "qty"; id: string; v: number }
   | { k: "remove"; id: string }
-  | { k: "add"; id: string; text: string };
+  | { k: "add"; id: string; text: string }
+  | { k: "edit"; id: string; name: string; note: string };
 
 const KEY = "boodschappen-wachtrij";
 const TIMEOUT = 8000; // langer wachten op de server heeft in de winkel geen zin
@@ -59,6 +60,8 @@ function send(op: Op): Promise<unknown> {
       return removeItem(op.id);
     case "add":
       return addFreeItem(op.text, undefined, op.id);
+    case "edit":
+      return editItem(op.id, op.name, op.note);
   }
 }
 
