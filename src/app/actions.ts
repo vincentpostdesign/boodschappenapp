@@ -7,7 +7,7 @@ import { bumpVersion } from "@/lib/version";
 import { redirect } from "next/navigation";
 import { db, check } from "@/lib/db";
 import { LONG_COOKIE, PERSON_COOKIE, STORE_COOKIE, isPersonId, requirePerson } from "@/lib/session";
-import { matchProduct } from "@/lib/route";
+import { matchProduct, normalize } from "@/lib/route";
 import { parseQuantity } from "@/lib/quantity";
 import { getProducts } from "@/lib/data";
 import { ACCESS_COOKIE, verifyAccessToken } from "@/lib/access";
@@ -18,6 +18,18 @@ import { remember } from "@/lib/categorize";
 function refresh() {
   revalidatePath("/", "layout");
   after(bumpVersion); // open apps (bijv. die van Marleen) verversen zichzelf
+}
+
+/** "Niet te koop bij de Aldi": per productnaam en winkel aan- of uitzetten. */
+export async function setUnavailableAtStore(name: string, storeId: string, unavailable: boolean) {
+  await requirePerson();
+  const key = normalize(name).slice(0, 120);
+  if (!key) return;
+  const store = check(await db().from("stores").select("id").eq("id", storeId).maybeSingle(), "winkel");
+  if (!store) throw new Error("Onbekende winkel");
+  if (unavailable) check(await db().from("store_unavailable").upsert({ name: key, store_id: storeId }), "niet bij winkel");
+  else check(await db().from("store_unavailable").delete().eq("name", key).eq("store_id", storeId), "niet bij winkel");
+  refresh();
 }
 
 // ---------- wie ben ik / winkel ----------

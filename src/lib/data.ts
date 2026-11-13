@@ -163,3 +163,10 @@ export const getReceiptNames = unstable_cache(
   ["receipt-names-v1"],
   { tags: [TAG_PRIJZEN], revalidate: 600 },
 );
+
+/** Producten die bij een winkel niet te koop zijn: set van "genormaliseerde naam|winkel-id". */
+export async function getUnavailable(): Promise<Set<string>> {
+  const { data, error } = await db().from("store_unavailable").select("name, store_id");
+  if (error) return new Set(); // tabel (nog) niet aanwezig: niets uitzonderen
+  return new Set((data as { name: string; store_id: string }[]).map((r) => `${r.name}|${r.store_id}`));
+}

@@ -8,9 +8,10 @@ import {
   getProductDepartments,
   getProducts,
   getReceiptNames,
+  getUnavailable,
   getShopper,
 } from "@/lib/data";
-import { groupByRoute } from "@/lib/route";
+import { groupByRoute, normalize } from "@/lib/route";
 import { after } from "next/server";
 import { getScoupyDeals } from "@/lib/scoupy-store";
 import { dealMatches, storeList, validAt, type ScoupyDeal } from "@/lib/scoupy";
@@ -26,7 +27,7 @@ export const dynamic = "force-dynamic";
 export default async function ListPage() {
   const me = await requirePerson();
   const { store, defaultStore, stores } = await getActiveStore();
-  const [departments, mapping, items, prices, shopper, products, memory, scoupy, receiptNames] = await Promise.all([
+  const [departments, mapping, items, prices, shopper, products, memory, scoupy, receiptNames, unavailable] = await Promise.all([
     getDepartments(store.id),
     getProductDepartments(store.id),
     getActiveItems(),
@@ -36,7 +37,10 @@ export default async function ListPage() {
     getCategoryMemory(),
     getScoupyDeals().catch(() => [] as ScoupyDeal[]),
     getReceiptNames().catch(() => [] as string[]),
+    getUnavailable(),
   ]);
+  // Niet te koop bij de gekozen winkel (bijv. opschuimmelk bij de Aldi): onderaan in een eigen blok.
+  const notHere = (i: { name: string }) => unavailable.has(`${normalize(i.name)}|${store.id}`);
   // Scoupy-actie bij deze regel (bijv. "Optimel" → Optimel drinkyoghurt voor €0,01 bij de Albert Heijn).
   // Een actie die bij de gekozen winkel geldt gaat voor; anders tonen we bij welke winkels hij wél geldt.
   const scoupyFor = (name: string) => {
@@ -65,15 +69,24 @@ export default async function ListPage() {
     movable: memoryReady(memory) && !(i.product_id && mapping.get(i.product_id)),
     fixed: !!i.product_id,
     scoupy: i.checked ? null : scoupyFor(i.name),
+    notHere: notHere(i),
   });
 
   const open = items.filter((i) => !i.checked);
   const done = items.filter((i) => i.checked).sort((a, b) => (b.checked_at ?? "").localeCompare(a.checked_at ?? ""));
-  const groups = groupByRoute(open, departments, departmentOf).map((g) => ({
-    key: g.departmentId ?? "overig",
-    name: g.name,
-    items: g.items.map(toView),
-  }));
+  const elsewhere = open.filter(notHere);
+  const groups = [
+    ...groupByRoute(
+      open.filter((i) => !notHere(i)),
+      departments,
+      departmentOf,
+    ).map((g) => ({
+      key: g.departmentId ?? "overig",
+      name: g.name,
+      items: g.items.map(toView),
+    })),
+    ...(elsewhere.length ? [{ key: "elders", name: `Niet bij de ${store.name}`, items: elsewhere.map(toView) }] : []),
+  ];
 
   const today = todayNL();
   return (
@@ -96,6 +109,7 @@ export default async function ListPage() {
           ...scoupy.map((d) => ({ name: d.product, from: "scoupy" as const, note: d.short || "cashback" })),
         ]}
         storeName={store.name}
+        storeId={store.id}
         me={me}
       />
     </div>

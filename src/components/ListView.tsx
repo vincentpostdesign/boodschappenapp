@@ -1,6 +1,6 @@
 "use client";
 
-import { useOptimistic, useRef, useState, useTransition } from "react";
+import { createContext, useContext, useOptimistic, useRef, useState, useTransition } from "react";
 import { newId, runOrQueue, usePendingOps } from "@/lib/offline-queue";
 import { PersonDot } from "./PersonDot";
 import { IconCheck, IconPlus, IconTag } from "./icons";
@@ -8,7 +8,10 @@ import { Stepper } from "./Stepper";
 import { SwipeToDelete } from "./SwipeToDelete";
 import type { PersonId } from "@/lib/types";
 import { CATEGORIES } from "@/lib/categories";
-import { archiveCheckedItems, setItemCategory } from "@/app/actions";
+import { archiveCheckedItems, setItemCategory, setUnavailableAtStore } from "@/app/actions";
+
+/** De winkel die bovenaan gekozen is (voor "niet te koop bij de …"). */
+const StoreCtx = createContext<{ id: string; name: string }>({ id: "", name: "" });
 import { makeFixedFromItem } from "@/app/beheer-actions";
 
 export type ViewItem = {
@@ -24,6 +27,7 @@ export type ViewItem = {
   category?: string | null; // soort product (bepaalt de afdeling als er geen vaste koppeling is)
   movable?: boolean; // afdeling volgt uit de soort, dus met de hand te verplaatsen
   fixed?: boolean; // hoort bij een vast product
+  notHere?: boolean; // niet te koop bij de gekozen winkel
   // Cashback-actie in Scoupy; here = geldt bij de gekozen winkel
   scoupy?: { label: string; product: string; stores: string; here: boolean; storeName: string; until: string } | null;
 };
@@ -36,6 +40,28 @@ export type Suggestion = { name: string; from: "vast" | "bon" | "scoupy"; note?:
 const euroDiff = (n: number) => `−€${n.toFixed(2).replace(".", ",")}`;
 
 export function ListView({
+  groups,
+  done,
+  suggestions,
+  storeName,
+  storeId,
+  me,
+}: {
+  groups: Group[];
+  done: ViewItem[];
+  suggestions: Suggestion[];
+  storeName: string;
+  storeId: string;
+  me: PersonId;
+}) {
+  return (
+    <StoreCtx.Provider value={{ id: storeId, name: storeName }}>
+      <ListViewInner groups={groups} done={done} suggestions={suggestions} storeName={storeName} me={me} />
+    </StoreCtx.Provider>
+  );
+}
+
+function ListViewInner({
   groups,
   done,
   suggestions,
@@ -259,6 +285,8 @@ function EditPanel({ item, onClose }: { item: ViewItem; onClose: () => void }) {
   const [note, setNote] = useState(item.description ?? "");
   const [category, setCategory] = useState(item.category ?? "overig");
   const [making, setMaking] = useState(false);
+  const store = useContext(StoreCtx);
+  const [notHere, setNotHere] = useState(!!item.notHere);
   const [, start] = useTransition();
   const field = "h-11 w-full min-w-0 rounded-xl border border-line bg-surface px-3 text-[16px] outline-none focus:border-accent";
 
@@ -267,6 +295,7 @@ function EditPanel({ item, onClose }: { item: ViewItem; onClose: () => void }) {
     const n = name.trim();
     if (!n) return;
     onClose();
+    if (notHere !== !!item.notHere && store.id) start(() => setUnavailableAtStore(n, store.id, notHere));
     if (n !== item.name || note.trim() !== (item.description ?? "")) {
       void runOrQueue({ k: "edit", id: item.id, name: n, note: note.trim() });
     }
@@ -292,6 +321,14 @@ function EditPanel({ item, onClose }: { item: ViewItem; onClose: () => void }) {
           />
         </label>
       </div>
+      {store.id && !item.waiting && (
+        <label className="flex min-h-11 items-center gap-3 rounded-xl border border-line bg-surface px-3">
+          <input type="checkbox" checked={notHere} onChange={(e) => setNotHere(e.target.checked)} className="h-5 w-5 accent-[var(--accent)]" />
+          <span className="text-[15px]">
+            Niet te koop bij de {store.name} <span className="text-muted">· komt onderaan de lijst</span>
+          </span>
+        </label>
+      )}
       {item.movable && !item.waiting && (
         <label className="block">
           <span className="mb-1 block px-1 text-xs font-medium text-muted">Afdeling</span>
