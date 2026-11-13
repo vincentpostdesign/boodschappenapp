@@ -14,8 +14,12 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   const avatars = await getAvatarUrls();
   return (
     <AvatarProvider urls={avatars}>
-      {/* Vlak achter de statusbalk (iPhone-app op beginscherm): inhoud schuift er niet meer onderdoor */}
-      <div aria-hidden data-statusvlak className="fixed inset-x-0 top-0 z-40 h-[env(safe-area-inset-top)] bg-bg" />
+      {/*
+        Vlak achter de statusbalk (iPhone-app op beginscherm). iOS laat het scherm van de app onder de statusbalk
+        beginnen (geen veilige marge, env = 0), maar tekent gescrolde inhoud tóch boven die rand, achter de klok.
+        Daarom staat dit vlak bóven de bovenrand (top: -120px) en loopt het door tot de eventuele veilige marge.
+      */}
+      <div aria-hidden data-statusvlak className="fixed inset-x-0 top-[-120px] z-40 h-[calc(120px+env(safe-area-inset-top))] bg-bg" />
       <ScreenProbe />
       <TopNav />
       <main className="mx-auto w-full max-w-3xl px-4 pt-[max(1rem,env(safe-area-inset-top))] pb-nav md:pt-6 md:pb-12">{children}</main>

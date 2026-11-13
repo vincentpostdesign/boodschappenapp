@@ -18,7 +18,8 @@ export function ScreenProbe() {
       const r = cover?.getBoundingClientRect();
       const vv = window.visualViewport;
       setInfo({
-        "env top": `${probe.getBoundingClientRect().height}px`,
+        // De hoogte van de meet-div bevat ook de padding (ondermarge): trek die eraf
+        "env top": `${probe.getBoundingClientRect().height - parseFloat(getComputedStyle(probe).paddingBottom)}px`,
         "env onder": `${parseFloat(getComputedStyle(probe).paddingBottom)}px`,
         "vlak top/hoogte": r ? `${Math.round(r.top)} / ${Math.round(r.height)}px` : "niet gevonden",
         innerHeight: `${innerHeight}`,
