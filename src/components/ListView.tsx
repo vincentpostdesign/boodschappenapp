@@ -8,7 +8,7 @@ import { Stepper } from "./Stepper";
 import { SwipeToDelete } from "./SwipeToDelete";
 import type { PersonId } from "@/lib/types";
 import { CATEGORIES } from "@/lib/categories";
-import { setItemCategory } from "@/app/actions";
+import { archiveCheckedItems, setItemCategory } from "@/app/actions";
 
 export type ViewItem = {
   id: string;
@@ -28,6 +28,9 @@ export type ViewItem = {
 
 type Group = { key: string; name: string; items: ViewItem[] };
 
+/** Voorstel bij het intypen: een vast product of een product van jullie eigen bonnen. */
+export type Suggestion = { name: string; from: "vast" | "bon" };
+
 const euroDiff = (n: number) => `−€${n.toFixed(2).replace(".", ",")}`;
 
 export function ListView({
@@ -39,7 +42,7 @@ export function ListView({
 }: {
   groups: Group[];
   done: ViewItem[];
-  suggestions: string[];
+  suggestions: Suggestion[];
   storeName: string;
   me: PersonId;
 }) {
@@ -145,7 +148,20 @@ export function ListView({
               <Row key={item.id} item={item} checked expanded={false} onExpand={() => {}} onToggle={() => onToggle(item)} {...swipeProps(item)} />
             ))}
           </ul>
-          <p className="mt-2 px-1 text-xs text-muted">Gehaalde producten verdwijnen vannacht van de lijst.</p>
+          <div className="mt-2 flex items-center justify-between gap-3 px-1">
+            <p className="text-xs text-muted">Gehaalde producten verdwijnen vannacht vanzelf.</p>
+            <button
+              onClick={() =>
+                start(async () => {
+                  doneItems.forEach((i) => markRemoved(i.id));
+                  await archiveCheckedItems();
+                })
+              }
+              className="h-10 shrink-0 rounded-xl border border-line bg-surface px-3 text-sm font-medium"
+            >
+              Nu van de lijst halen
+            </button>
+          </div>
         </section>
       )}
     </div>
@@ -297,43 +313,89 @@ function EditPanel({ item, onClose }: { item: ViewItem; onClose: () => void }) {
   );
 }
 
-function AddBar({ suggestions }: { suggestions: string[] }) {
+const plain = (s: string) =>
+  s
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[̀-ͯ]/g, "");
+
+/**
+ * Zoekt in vaste producten en in wat jullie echt kochten (bonnen). Elk woord van de zoektekst moet voorkomen;
+ * namen die met de zoektekst beginnen en vaste producten komen eerst. "kaas" → "Jonge kaas 48+ plakken".
+ */
+function matchSuggestions(text: string, all: Suggestion[]): Suggestion[] {
+  const q = plain(text.trim());
+  if (q.length < 2) return [];
+  const words = q.split(/\s+/);
+  const scored: { s: Suggestion; score: number }[] = [];
+  for (const s of all) {
+    const n = plain(s.name);
+    if (n === q || !words.every((w) => n.includes(w))) continue;
+    const starts = n.startsWith(q) ? 0 : n.split(/\s+/).some((w) => w.startsWith(words[0])) ? 1 : 2;
+    scored.push({ s, score: starts * 2 + (s.from === "vast" ? 0 : 1) });
+  }
+  return scored.sort((a, b) => a.score - b.score).slice(0, 6).map((x) => x.s);
+}
+
+function AddBar({ suggestions }: { suggestions: Suggestion[] }) {
   const [text, setText] = useState("");
-  const pending = false; // toevoegen wacht nooit: het gaat direct of via de wachtrij
+  const [focus, setFocus] = useState(false);
   const input = useRef<HTMLInputElement>(null);
-  const submit = (e: React.FormEvent) => {
-    e.preventDefault();
-    const value = text.trim();
-    if (!value) return;
+  const add = (value: string) => {
+    const v = value.trim();
+    if (!v) return;
     setText("");
     input.current?.focus();
-    void runOrQueue({ k: "add", id: newId(), text: value });
+    void runOrQueue({ k: "add", id: newId(), text: v });
   };
+  const submit = (e: React.FormEvent) => {
+    e.preventDefault();
+    add(text);
+  };
+  const matches = focus ? matchSuggestions(text, suggestions) : [];
   return (
-    <form onSubmit={submit} className="flex gap-2">
-      <input
-        ref={input}
-        value={text}
-        onChange={(e) => setText(e.target.value)}
-        list="vaste-producten"
-        placeholder="Product toevoegen…"
-        aria-label="Product toevoegen"
-        enterKeyHint="done"
-        autoComplete="off"
-        className="h-14 min-w-0 flex-1 rounded-2xl border border-line bg-surface px-4 text-[17px] outline-none placeholder:text-muted focus:border-accent"
-      />
-      <datalist id="vaste-producten">
-        {suggestions.map((s) => (
-          <option key={s} value={s} />
-        ))}
-      </datalist>
-      <button
-        disabled={pending || !text.trim()}
-        aria-label="Toevoegen"
-        className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-accent text-accent-ink disabled:opacity-50"
-      >
-        <IconPlus className="h-7 w-7" />
-      </button>
-    </form>
+    <div className="relative">
+      <form onSubmit={submit} className="flex gap-2">
+        <input
+          ref={input}
+          value={text}
+          onChange={(e) => setText(e.target.value)}
+          onFocus={() => setFocus(true)}
+          onBlur={() => setTimeout(() => setFocus(false), 150)}
+          placeholder="Product toevoegen…"
+          aria-label="Product toevoegen"
+          aria-autocomplete="list"
+          enterKeyHint="done"
+          autoComplete="off"
+          className="h-14 min-w-0 flex-1 rounded-2xl border border-line bg-surface px-4 text-[17px] outline-none placeholder:text-muted focus:border-accent"
+        />
+        <button
+          disabled={!text.trim()}
+          aria-label="Toevoegen"
+          className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-accent text-accent-ink disabled:opacity-50"
+        >
+          <IconPlus className="h-7 w-7" />
+        </button>
+      </form>
+      {matches.length > 0 && (
+        <ul role="listbox" aria-label="Voorstellen" className="absolute inset-x-0 top-full z-30 mt-1 overflow-hidden rounded-2xl border border-line bg-surface shadow-lg">
+          {matches.map((m) => (
+            <li key={`${m.from}-${m.name}`}>
+              <button
+                type="button"
+                role="option"
+                aria-selected={false}
+                onMouseDown={(e) => e.preventDefault()}
+                onClick={() => add(m.name)}
+                className="flex min-h-12 w-full items-center justify-between gap-3 border-b border-line px-4 py-2 text-left last:border-b-0"
+              >
+                <span className="min-w-0 truncate text-[16px]">{m.name}</span>
+                <span className="shrink-0 text-xs text-muted">{m.from === "vast" ? "vast product" : "van de bon"}</span>
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
   );
 }

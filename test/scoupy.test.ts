@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
-import { dealMatches, isCurrent, parseScoupyHtml, storeList, validAt, type ScoupyDeal } from "../src/lib/scoupy";
+import { dealIdFromLink, dealMatches, isCurrent, parseScoupyHtml, storeList, validAt, type ScoupyDeal } from "../src/lib/scoupy";
 
 const html = readFileSync(join(__dirname, "fixtures", "scoupy.html"), "utf8");
 
@@ -51,6 +51,18 @@ describe("winkels", () => {
     expect(storeList(ah)).toBe("AH");
     expect(storeList(overal)).toBe("AH, Jumbo, Aldi, Lidl, Plus");
     expect(storeList({ stores: [] } as unknown as ScoupyDeal)).toBe("alle winkels");
+  });
+});
+
+describe("dealIdFromLink", () => {
+  it("haalt het actienummer uit een gedeelde link", () => {
+    expect(dealIdFromLink("https://scoupy.com/nl/geld-terug/optimel/optimel-proteine-extra-drinkyoghurt-van-eur179-voor-eur001/55882/co")).toBe(55882);
+    expect(dealIdFromLink("Kijk deze actie! https://scoupy.com/nl-NL/groceries/56012")).toBe(56012);
+    expect(dealIdFromLink("https://www.scoupy.nl/nl/geld-terug/x/y/56013/co?utm=1")).toBe(56013);
+  });
+  it("weigert andere websites en tekst zonder link", () => {
+    expect(dealIdFromLink("https://example.com/geld-terug/56012/co")).toBeNull();
+    expect(dealIdFromLink("optimel")).toBeNull();
   });
 });
 

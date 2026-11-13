@@ -166,6 +166,16 @@ export async function removeItem(itemId: string) {
   refresh();
 }
 
+/** Knop "Nu van de lijst halen": gehaalde producten meteen archiveren (anders gebeurt dat 's nachts). */
+export async function archiveCheckedItems() {
+  await requirePerson();
+  check(
+    await db().from("list_items").update({ archived: true, archived_at: new Date().toISOString() }).eq("checked", true).eq("archived", false),
+    "opruimen",
+  );
+  refresh();
+}
+
 /** Naam en opmerking van een regel op de lijst wijzigen (alleen deze regel, niet het vaste product). */
 export async function editItem(itemId: string, name: string, note: string) {
   await requirePerson();

@@ -7,6 +7,7 @@ import {
   getKnownPrices,
   getProductDepartments,
   getProducts,
+  getReceiptNames,
   getShopper,
 } from "@/lib/data";
 import { groupByRoute } from "@/lib/route";
@@ -25,7 +26,7 @@ export const dynamic = "force-dynamic";
 export default async function ListPage() {
   const me = await requirePerson();
   const { store, defaultStore, stores } = await getActiveStore();
-  const [departments, mapping, items, prices, shopper, products, memory, scoupy] = await Promise.all([
+  const [departments, mapping, items, prices, shopper, products, memory, scoupy, receiptNames] = await Promise.all([
     getDepartments(store.id),
     getProductDepartments(store.id),
     getActiveItems(),
@@ -34,6 +35,7 @@ export default async function ListPage() {
     getProducts(),
     getCategoryMemory(),
     getScoupyDeals().catch(() => [] as ScoupyDeal[]),
+    getReceiptNames().catch(() => [] as string[]),
   ]);
   // Scoupy-actie bij deze regel (bijv. "Optimel" → Optimel drinkyoghurt voor €0,01 bij de Albert Heijn).
   // Een actie die bij de gekozen winkel geldt gaat voor; anders tonen we bij welke winkels hij wél geldt.
@@ -84,7 +86,13 @@ export default async function ListPage() {
       <ListView
         groups={groups}
         done={done.map(toView)}
-        suggestions={[...new Set(products.map((p) => p.name))]}
+        suggestions={[
+          ...[...new Set(products.map((p) => p.name))].map((name) => ({ name, from: "vast" as const })),
+          ...receiptNames
+            .filter((n) => !products.some((p) => p.name.toLowerCase() === n.toLowerCase()))
+            .slice(0, 400)
+            .map((name) => ({ name, from: "bon" as const })),
+        ]}
         storeName={store.name}
         me={me}
       />

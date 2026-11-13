@@ -1,8 +1,65 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useTransition } from "react";
 import { newId, runOrQueue } from "@/lib/offline-queue";
-import { IconCheck, IconList, IconSearch } from "../icons";
+import { addScoupyLink, type ShareResult } from "@/app/scoupy-actions";
+import { IconCheck, IconList, IconPlus, IconSearch } from "../icons";
+
+/**
+ * Persoonlijke acties (bijv. Optimel voor €0,01) staan niet in de openbare Scoupy-lijst.
+ * In de Scoupy-app: actie openen → deel-icoon → Kopieer → hier plakken.
+ */
+function ShareLink() {
+  const [text, setText] = useState("");
+  const [result, setResult] = useState<ShareResult | null>(null);
+  const [pending, start] = useTransition();
+  const submit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!text.trim()) return;
+    start(async () => {
+      const r = await addScoupyLink(text);
+      setResult(r);
+      if (r.ok) setText("");
+    });
+  };
+  const paste = async () => {
+    try {
+      const t = await navigator.clipboard.readText();
+      if (t) setText(t);
+    } catch {
+      /* geen toegang tot klembord: gewoon zelf plakken */
+    }
+  };
+  return (
+    <form onSubmit={submit} className="space-y-2 rounded-2xl border border-line bg-surface p-3">
+      <p className="text-sm text-muted">
+        Actie uit de Scoupy-app die hier niet staat? Open hem in Scoupy, tik op het deel-icoon, kies <strong className="text-ink">Kopieer</strong> en plak de link hier.
+      </p>
+      <div className="flex gap-2">
+        <input
+          value={text}
+          onChange={(e) => setText(e.target.value)}
+          onFocus={() => !text && paste()}
+          placeholder="Plak de Scoupy-link…"
+          aria-label="Scoupy-link"
+          inputMode="url"
+          autoComplete="off"
+          className="h-11 min-w-0 flex-1 rounded-xl border border-line bg-surface px-3 text-[16px] outline-none focus:border-accent"
+        />
+        <button
+          disabled={pending || !text.trim()}
+          aria-label="Scoupy-actie toevoegen"
+          className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-accent text-accent-ink disabled:opacity-50"
+        >
+          <IconPlus className="h-5 w-5" />
+        </button>
+      </div>
+      {pending && <p className="text-sm text-muted">Actie ophalen…</p>}
+      {result?.ok && <p className="text-sm font-medium text-accent">{result.ok}</p>}
+      {result?.error && <p className="text-sm text-danger">{result.error}</p>}
+    </form>
+  );
+}
 
 export type ScoupyView = { id: number; title: string; product: string; brand: string; short: string; stores: string; until: string; image: string | null; onList: boolean };
 
@@ -26,6 +83,7 @@ export function ScoupyDeals({ deals, updated }: { deals: ScoupyView[]; updated: 
         </h2>
         {updated && <span className="text-xs text-muted">bijgewerkt {updated}</span>}
       </div>
+      <ShareLink />
       {deals.length === 0 ? (
         <p className="rounded-2xl border border-dashed border-line px-4 py-6 text-center text-sm text-muted">
           Nog geen Scoupy-acties opgehaald. Kijk over een paar minuten nog eens.

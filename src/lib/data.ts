@@ -139,3 +139,27 @@ export async function getSetting<T>(key: string, fallback: T): Promise<T> {
   } | null;
   return row ? row.value : fallback;
 }
+
+/**
+ * Productnamen van jullie eigen bonnen (wat jullie echt kopen), vaakst gekocht eerst.
+ * Voor de voorstellen bij het intypen: "kaas" → "Jonge kaas 48+ plakken".
+ */
+export const getReceiptNames = unstable_cache(
+  async (): Promise<string[]> => {
+    const rows = check(
+      await db().from("receipt_lines").select("raw_name, price").gt("price", 0).limit(3000),
+      "bonnamen",
+    ) as { raw_name: string; price: number }[];
+    const count = new Map<string, { name: string; n: number }>();
+    for (const r of rows) {
+      const name = r.raw_name.trim();
+      if (name.length < 2 || /statiegeld|korting|emballage|tasje|tas\b/i.test(name)) continue;
+      const k = name.toLowerCase();
+      const cur = count.get(k);
+      count.set(k, { name: cur?.name ?? name, n: (cur?.n ?? 0) + 1 });
+    }
+    return [...count.values()].sort((a, b) => b.n - a.n || a.name.localeCompare(b.name, "nl")).map((x) => x.name);
+  },
+  ["receipt-names-v1"],
+  { tags: [TAG_PRIJZEN], revalidate: 600 },
+);

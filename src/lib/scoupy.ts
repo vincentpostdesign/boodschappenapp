@@ -30,6 +30,9 @@ type RawCoupon = {
   retailer_availability?: string;
   available_clients?: { client_title?: string; client_type?: string }[];
   image?: string;
+  // Velden op de detailpagina van één actie
+  coupon_subtitle_short?: string;
+  coupon_image?: string;
 };
 
 // Scoupy geeft Nederlandse tijd zonder tijdzone ("2026-11-12 23:59:59").
@@ -57,8 +60,10 @@ export function parseScoupyHtml(html: string): ScoupyDeal[] {
     if (!o || typeof o !== "object") return;
     const c = o as RawCoupon;
     if (typeof c.id_coupon === "number" && c.coupon_title) {
-      const starts = toIso(c.coupon_startdate);
+      // De detailpagina van een actie noemt geen begindatum: dan geldt hij vanaf nu.
+      const starts = toIso(c.coupon_startdate) ?? (c.coupon_startdate ? null : new Date().toISOString());
       const ends = toIso(c.coupon_enddate);
+      const img = [c.image, c.coupon_image].find((x) => x && /^[\w.,-]+\.(jpe?g|png|webp)$/i.test(x));
       if (c.coupon_type === "cashback" && c.coupon_available !== "no" && starts && ends) {
         const stores =
           c.retailer_availability === "all"
@@ -69,11 +74,11 @@ export function parseScoupyHtml(html: string): ScoupyDeal[] {
           title: (c.title || c.coupon_title).trim(),
           product: (c.product_title || c.coupon_title.split(":")[0]).trim(),
           brand: (c.client_title ?? "").trim(),
-          short: (c.subtitle_short ?? "").trim(),
+          short: (c.subtitle_short ?? c.coupon_subtitle_short ?? "").trim(),
           starts,
           ends,
           stores,
-          image: c.image && /^[\w.,-]+\.(jpe?g|png|webp)$/i.test(c.image) ? `https://assets.scoupy.nl/464/${c.image}` : null,
+          image: img ? `https://assets.scoupy.nl/464/${img}` : null,
         });
       }
       return;
@@ -82,6 +87,41 @@ export function parseScoupyHtml(html: string): ScoupyDeal[] {
   };
   walk(data);
   return [...found.values()];
+}
+
+/**
+ * Actienummer uit een gedeelde Scoupy-link, bijv.
+ * https://scoupy.com/nl/geld-terug/optimel/optimel-drink-…/56012/co of https://scoupy.com/nl-NL/groceries/56012.
+ */
+export function dealIdFromLink(text: string): number | null {
+  const url = text.match(/https?:\/\/[^\s]+/)?.[0];
+  if (!url) return null;
+  let u: URL;
+  try {
+    u = new URL(url);
+  } catch {
+    return null;
+  }
+  if (!/(^|\.)scoupy\.(com|nl)$/.test(u.hostname)) return null;
+  const m = u.pathname.match(/\/(\d{4,8})(?:\/[a-z]{1,4})?\/?$/);
+  return m ? Number(m[1]) : null;
+}
+
+/** Eén actie ophalen via zijn openbare detailpagina (ook acties die niet in de algemene lijst staan). */
+export async function fetchScoupyDeal(id: number): Promise<ScoupyDeal | null> {
+  const res = await fetch(`https://scoupy.com/nl-NL/groceries/${id}`, {
+    headers: { "User-Agent": "Mozilla/5.0 (Boodschappenapp; persoonlijk gebruik)", "Accept-Language": "nl-NL" },
+    signal: AbortSignal.timeout(15000),
+    cache: "no-store",
+  });
+  if (!res.ok) return null;
+  const html = await res.text();
+  const deal = parseScoupyHtml(html).find((d) => d.id === id) ?? null;
+  if (deal && !deal.image) {
+    const og = html.match(/<meta[^>]+property="og:image"[^>]+content="(https:\/\/assets\.scoupy\.nl\/[^"]+)"/)?.[1];
+    if (og) deal.image = og;
+  }
+  return deal;
 }
 
 export async function fetchScoupyDeals(): Promise<ScoupyDeal[]> {
