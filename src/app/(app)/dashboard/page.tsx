@@ -3,7 +3,7 @@ import { db, check } from "@/lib/db";
 import { requirePerson } from "@/lib/session";
 import { getStores } from "@/lib/data";
 import { addDays, euro, todayNL } from "@/lib/dates";
-import { PERIOD_DAYS, bucketOf, buckets, frequencies, type Period, type Purchase } from "@/lib/dashboard";
+import { PERIOD_DAYS, bucketOf, buckets, dedupeReceipts, frequencies, priceTrends, type Period, type Purchase } from "@/lib/dashboard";
 import { BarList, Columns } from "@/components/dashboard/Charts";
 import { MakeFixedButton } from "@/components/dashboard/MakeFixedButton";
 import { BackLink } from "@/components/BackLink";
@@ -25,22 +25,49 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
   const bks = buckets(period, today);
   const from = [bks[0].key, addDays(today, -PERIOD_DAYS[period])].sort()[0];
 
-  const [receiptsRes, listRes, stores] = await Promise.all([
+  // Elke uitgelezen bon telt mee, ook zonder "opslaan"; een dubbel gefotografeerde bon maar één keer.
+  const [receiptsRes, listRes, stores, historyRes] = await Promise.all([
     db()
       .from("receipts")
       .select("id, store_id, purchased_on, total, lines:receipt_lines(raw_name, price, product_id)")
-      .eq("status", "gecontroleerd")
+      .eq("reading", false)
       .gte("purchased_on", from)
       .lte("purchased_on", today),
     db().from("list_items").select("name, product_id, checked_at").eq("checked", true).gte("checked_at", `${from}T00:00:00Z`),
     getStores(),
+    // Prijsverloop: een jaar terug, los van de gekozen periode
+    db()
+      .from("receipts")
+      .select("store_id, purchased_on, total, lines:receipt_lines(quantity, price, product_id)")
+      .eq("reading", false)
+      .gte("purchased_on", addDays(today, -365))
+      .lte("purchased_on", today),
   ]);
-  const receipts = check(receiptsRes, "bonnen") as unknown as {
-    store_id: string;
-    purchased_on: string;
-    total: number | null;
-    lines: { raw_name: string; price: number; product_id: string | null }[];
-  }[];
+  const receipts = dedupeReceipts(
+    check(receiptsRes, "bonnen") as unknown as {
+      store_id: string;
+      purchased_on: string;
+      total: number | null;
+      lines: { raw_name: string; price: number; product_id: string | null }[];
+    }[],
+  );
+  const history = dedupeReceipts(
+    check(historyRes, "prijshistorie") as unknown as {
+      store_id: string | null;
+      purchased_on: string | null;
+      total: number | null;
+      lines: { quantity: number; price: number; product_id: string | null }[];
+    }[],
+  );
+  const trends = priceTrends(
+    history.flatMap((r) =>
+      r.store_id && r.purchased_on
+        ? r.lines
+            .filter((l) => l.product_id && Number(l.price) > 0 && Number(l.quantity) > 0)
+            .map((l) => ({ productId: l.product_id!, day: r.purchased_on!, store: r.store_id!, unit: Math.round((Number(l.price) / Number(l.quantity)) * 100) / 100 }))
+        : [],
+    ),
+  );
   const listItems = check(listRes, "lijsthistorie") as { name: string; product_id: string | null; checked_at: string }[];
   const names = Object.fromEntries(stores.map((s) => [s.id, s.name]));
 
@@ -74,7 +101,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
     ...receipts.flatMap((r) => r.lines.filter((l) => l.product_id && Number(l.price) > 0).map((l) => ({ day: r.purchased_on, productId: l.product_id, name: l.raw_name }))),
   ];
   // Namen van vaste producten gebruiken waar bekend
-  const productIds = [...new Set(purchases.map((p) => p.productId).filter(Boolean))] as string[];
+  const productIds = [...new Set([...purchases.map((p) => p.productId), ...trends.map((t) => t.productId)].filter(Boolean))] as string[];
   const productNames = productIds.length
     ? Object.fromEntries(
         (check(await db().from("products").select("id, name, description").in("id", productIds), "producten") as {
@@ -129,7 +156,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
 
       {receipts.length === 0 && (
         <p className="rounded-2xl bg-surface px-4 py-6 text-center text-muted">
-          Nog geen gecontroleerde bonnen in deze periode. Uitgaven verschijnen zodra je bonnetjes toevoegt en controleert.
+          Nog geen bonnen in deze periode. Uitgaven verschijnen zodra je bonnetjes fotografeert.
         </p>
       )}
 
@@ -179,6 +206,44 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
           </ul>
         </section>
       )}
+
+      <section className={section} aria-labelledby="prijs-kop">
+        <h2 id="prijs-kop" className={h2}>Prijsverloop vaste producten</h2>
+        <p className="text-sm text-muted">Prijs per stuk uit jullie bonnen van het afgelopen jaar: eerste en laatste keer gekocht.</p>
+        {trends.length === 0 ? (
+          <p className="py-2 text-sm text-muted">
+            Nog geen prijzen. Zodra bonregels aan een vast product gekoppeld zijn (de app doet dat zelf waar het kan), zie je hier of iets duurder of goedkoper wordt.
+          </p>
+        ) : (
+          <ul className="divide-y divide-line">
+            {trends.slice(0, 30).map((t) => {
+              const up = t.change > 0.004;
+              const down = t.change < -0.004;
+              return (
+                <li key={t.productId} className="flex items-center gap-3 py-2.5">
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate font-medium">{productNames[t.productId] ?? "Vast product"}</span>
+                    <span className="block text-xs text-muted">
+                      {t.points === 1
+                        ? `1 keer gekocht · ${names[t.last.store] ?? t.last.store}`
+                        : `${euro(t.first.unit)} → ${euro(t.last.unit)} · ${t.points}× gekocht`}
+                      {t.points > 1 && t.cheapest.unit < t.last.unit ? ` · goedkoopst ${euro(t.cheapest.unit)} bij ${names[t.cheapest.store] ?? t.cheapest.store}` : ""}
+                    </span>
+                  </span>
+                  <span className="shrink-0 text-right">
+                    <span className="block font-semibold tabular-nums">{euro(t.last.unit)}</span>
+                    {t.points > 1 && (
+                      <span className={`block text-xs font-semibold tabular-nums ${up ? "text-danger" : down ? "text-accent" : "text-muted"}`}>
+                        {up ? `▲ ${t.pct}% duurder` : down ? `▼ ${Math.abs(t.pct)}% goedkoper` : "gelijk"}
+                      </span>
+                    )}
+                  </span>
+                </li>
+              );
+            })}
+          </ul>
+        )}
+      </section>
 
       <div className="space-y-5 md:grid md:grid-cols-2 md:gap-4 md:space-y-0">
         <FreqList title="Vaak gekocht" sub="Gemiddeld minstens eens per twee weken" items={vaak} />

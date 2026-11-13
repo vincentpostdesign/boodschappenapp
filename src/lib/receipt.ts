@@ -56,3 +56,31 @@ export function applyAliases<L extends { raw_name: string }>(
   const map = new Map(aliases.map((a) => [normalize(a.alias), a.product_id]));
   return lines.map((l) => ({ ...l, product_id: map.get(normalize(l.raw_name)) ?? null }));
 }
+
+const words = (s: string) => normalize(s).split(" ").filter((w) => w.length > 1);
+// Enkelvoud/meervoud gelijkstellen: "bananen" ~ "banaan", "appels" ~ "appel", "kiwi s" ~ "kiwi".
+const stem = (w: string) => w.replace(/(en|s)$/, "").replace(/aa(\w)$/, "a$1");
+
+/**
+ * Stelt een vast product voor bij een bonregel zonder geleerde koppeling.
+ * Alle woorden van de productnaam moeten in de bonregel staan ("Kwark" ↔ "Magere kwark");
+ * bij meerdere kandidaten wint wie ook de meeste woorden van de omschrijving deelt (Kwark – Magere kwark).
+ * Te korte of te algemene namen leveren niets op, liever geen koppeling dan een verkeerde.
+ */
+export function suggestProduct(rawName: string, products: { id: string; name: string; description: string | null }[]): string | null {
+  const line = new Set(words(rawName).map(stem));
+  if (!line.size) return null;
+  let best: { id: string; score: number } | null = null;
+  let tie = false;
+  for (const p of products) {
+    const name = words(p.name).map(stem);
+    if (!name.length || name.join("").length < 3 || !name.every((w) => line.has(w))) continue;
+    const desc = words(p.description ?? "").map(stem);
+    const score = name.length * 10 + desc.filter((w) => line.has(w)).length;
+    if (!best || score > best.score) {
+      best = { id: p.id, score };
+      tie = false;
+    } else if (score === best.score) tie = true;
+  }
+  return best && !tie ? best.id : null;
+}

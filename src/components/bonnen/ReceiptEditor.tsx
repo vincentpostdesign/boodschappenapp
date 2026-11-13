@@ -177,7 +177,7 @@ export function ReceiptEditor({
                 aria-label="Vast product"
                 className={`${field} min-w-0 text-sm ${r.product_id ? "text-ink" : "text-muted"}`}
               >
-                <option value="">Koppelen…</option>
+                <option value="">Geen vast product</option>
                 {products.map((p) => (
                   <option key={p.id} value={p.id}>{p.label}</option>
                 ))}
@@ -205,7 +205,7 @@ export function ReceiptEditor({
       )}
 
       <p className="px-1 text-xs text-muted">
-        Met het lijst-icoon zet je een product van de bon direct op de boodschappenlijst. Koppel regels aan een vast product: de app onthoudt de naam op de bon voor deze winkel en gebruikt de prijs als referentie.
+        Met het lijst-icoon zet je een product van de bon direct op de boodschappenlijst. Rechtsonder per regel: welk <strong>vast product</strong> het is. De app vult dat zelf in waar het kan; klopt het niet, kies dan een ander of „Geen vast product”. Zo volgt het dashboard de prijs (duurder of goedkoper) en onthoudt de app de naam op de bon. De bon telt ook mee zonder op te slaan.
       </p>
 
       {error && <p role="alert" className="rounded-xl bg-danger/10 px-3 py-2 text-sm font-medium text-danger">{error}</p>}

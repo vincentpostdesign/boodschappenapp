@@ -67,3 +67,52 @@ export function frequencies(purchases: Purchase[], periodDays: number): Frequenc
     })
     .sort((a, b) => b.times - a.times || a.name.localeCompare(b.name, "nl"));
 }
+
+// ---------- prijsverloop vaste producten ----------
+
+export type PricePoint = { productId: string; day: string; store: string; unit: number };
+export type PriceTrend = {
+  productId: string;
+  first: PricePoint;
+  last: PricePoint;
+  change: number; // in euro, laatste min eerste
+  pct: number; // in procenten
+  points: number;
+  cheapest: PricePoint;
+};
+
+/**
+ * Per vast product: eerste en laatste bekende prijs per stuk (uit bonnen), het verschil en de goedkoopste aankoop.
+ * Producten met maar één meting tellen mee met verschil 0, zodat je ziet wat er al bekend is.
+ */
+export function priceTrends(points: PricePoint[]): PriceTrend[] {
+  const by = new Map<string, PricePoint[]>();
+  for (const p of points) {
+    if (!(p.unit > 0)) continue;
+    by.set(p.productId, [...(by.get(p.productId) ?? []), p]);
+  }
+  const out: PriceTrend[] = [];
+  for (const [productId, list] of by) {
+    const sorted = [...list].sort((a, b) => a.day.localeCompare(b.day));
+    const first = sorted[0];
+    const last = sorted[sorted.length - 1];
+    const change = Math.round((last.unit - first.unit) * 100) / 100;
+    const pct = first.unit ? Math.round((change / first.unit) * 1000) / 10 : 0;
+    const cheapest = sorted.reduce((m, p) => (p.unit < m.unit ? p : m), first);
+    out.push({ productId, first, last, change, pct, points: sorted.length, cheapest });
+  }
+  // Grootste stijging/daling bovenaan, daarna producten met één meting
+  return out.sort((a, b) => Math.abs(b.pct) - Math.abs(a.pct) || b.points - a.points);
+}
+
+/** Zelfde winkel, datum en totaal = waarschijnlijk dezelfde bon twee keer gefotografeerd. */
+export function dedupeReceipts<R extends { store_id: string | null; purchased_on: string | null; total: number | null }>(rows: R[]): R[] {
+  const seen = new Set<string>();
+  return rows.filter((r) => {
+    if (!r.store_id || !r.purchased_on || r.total == null) return true;
+    const k = `${r.store_id}|${r.purchased_on}|${Number(r.total)}`;
+    if (seen.has(k)) return false;
+    seen.add(k);
+    return true;
+  });
+}

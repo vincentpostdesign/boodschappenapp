@@ -2,7 +2,8 @@ import { NextResponse, after, type NextRequest } from "next/server";
 import { db, check } from "@/lib/db";
 import { currentPerson } from "@/lib/session";
 import { prepareImage, readReceiptPhoto, storePhoto, visionAvailable } from "@/lib/vision";
-import { applyAliases, cleanLines } from "@/lib/receipt";
+import { applyAliases, cleanLines, suggestProduct } from "@/lib/receipt";
+import { getProducts } from "@/lib/data";
 import { bumpVersion } from "@/lib/version";
 import { sendToPerson } from "@/lib/push";
 import type { PersonId } from "@/lib/types";
@@ -63,7 +64,11 @@ async function readInBackground(id: string, jpeg: Buffer, person: PersonId) {
           product_id: string;
         }[])
       : [];
-    const clean = applyAliases(cleanLines(read.regels), aliases);
+    // Eerst geleerde bonnamen, daarna een voorstel op naam ("Magere kwark" → vast product Kwark).
+    const products = await getProducts({ includeHidden: true });
+    const clean = applyAliases(cleanLines(read.regels), aliases).map((l) =>
+      l.product_id || l.price <= 0 ? l : { ...l, product_id: suggestProduct(l.raw_name, products) },
+    );
     // De bon kan intussen verwijderd zijn: dan niets meer doen.
     const exists = check(await db().from("receipts").select("id").eq("id", id).maybeSingle(), "bon");
     if (!exists) return;

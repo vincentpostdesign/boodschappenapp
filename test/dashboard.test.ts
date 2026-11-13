@@ -44,3 +44,32 @@ describe("frequencies", () => {
     expect(out[1].lastDay).toBe("2026-11-01");
   });
 });
+
+import { dedupeReceipts, priceTrends } from "../src/lib/dashboard";
+
+describe("priceTrends", () => {
+  it("ziet of een product duurder of goedkoper werd", () => {
+    const t = priceTrends([
+      { productId: "kwark", day: "2026-10-01", store: "aldi", unit: 1.49 },
+      { productId: "kwark", day: "2026-11-13", store: "aldi", unit: 1.59 },
+      { productId: "melk", day: "2026-11-01", store: "aldi", unit: 1.99 },
+      { productId: "melk", day: "2026-11-10", store: "jumbo", unit: 1.79 },
+      { productId: "brood", day: "2026-11-10", store: "aldi", unit: 2.19 },
+    ]);
+    const kwark = t.find((x) => x.productId === "kwark")!;
+    expect(kwark.change).toBe(0.1);
+    expect(kwark.pct).toBe(6.7);
+    const melk = t.find((x) => x.productId === "melk")!;
+    expect(melk.change).toBe(-0.2);
+    expect(melk.cheapest.store).toBe("jumbo");
+    expect(t.find((x) => x.productId === "brood")!.points).toBe(1);
+    expect(t[t.length - 1].productId).toBe("brood");
+  });
+});
+
+describe("dedupeReceipts", () => {
+  it("telt een dubbel gefotografeerde bon één keer", () => {
+    const r = { store_id: "aldi", purchased_on: "2026-11-13", total: 62.43 };
+    expect(dedupeReceipts([r, { ...r }, { ...r, total: 6.32 }])).toHaveLength(2);
+  });
+});

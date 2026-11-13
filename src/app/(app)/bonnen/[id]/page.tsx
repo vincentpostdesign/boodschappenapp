@@ -3,7 +3,7 @@ import { db, check } from "@/lib/db";
 import { requirePerson } from "@/lib/session";
 import { getProducts, getStores } from "@/lib/data";
 import { photoUrl, tidyNames, visionAvailable } from "@/lib/vision";
-import { niceCase } from "@/lib/receipt";
+import { niceCase, suggestProduct } from "@/lib/receipt";
 
 /**
  * Oudere bonnen staan nog in HOOFDLETTERS: bij openen eenmalig omzetten naar gewone schrijfwijze
@@ -70,13 +70,24 @@ export default async function BonPage({ params, searchParams }: { params: Promis
       </div>
     );
   }
-  const lines = await tidyStoredNames(
+  const tidied = await tidyStoredNames(
     (check(linesRes, "regels") as { id: string; raw_name: string; quantity: number; price: number; product_id: string | null }[]).map((l) => ({
       ...l,
       quantity: Number(l.quantity),
       price: Number(l.price),
     })),
   );
+  // Nog niet gecontroleerde bon: ontbrekende koppelingen voorstellen én bewaren, zodat ze meetellen in het prijsverloop.
+  const suggested = new Map<string, string>();
+  if (receipt.status === "nieuw") {
+    for (const l of tidied) {
+      if (l.product_id || l.price <= 0) continue;
+      const p = suggestProduct(l.raw_name, products);
+      if (p) suggested.set(l.id, p);
+    }
+    await Promise.all([...suggested].map(([id, p]) => db().from("receipt_lines").update({ product_id: p }).eq("id", id)));
+  }
+  const lines = tidied.map((l) => (suggested.has(l.id) ? { ...l, product_id: suggested.get(l.id)! } : l));
 
   return (
     <div className="space-y-4">
