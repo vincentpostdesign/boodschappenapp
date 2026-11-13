@@ -10,7 +10,7 @@ import { Notifications } from "@/components/beheer/Notifications";
 import { ChangeCodeForm, SetCodeForForm } from "@/components/CodeForm";
 import { codeStatus, signOutDevice } from "@/app/toegang-actions";
 import { ProfilePhoto } from "@/components/beheer/ProfilePhoto";
-import { IconChart, IconDown, IconEye, IconGift, IconStar } from "@/components/icons";
+import { IconChart, IconDown, IconEye, IconGift } from "@/components/icons";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Beheer · Boodschappen" };
@@ -18,10 +18,8 @@ export const metadata = { title: "Beheer · Boodschappen" };
 export default async function BeheerPage() {
   const me = await requirePerson();
   const today = todayNL();
-  const [schedule, productCount, hiddenCount, stores, codes, giftCount] = await Promise.all([
+  const [schedule, stores, codes, giftCount] = await Promise.all([
     getWeekSchedule(),
-    db().from("products").select("id", { count: "exact", head: true }).eq("hidden", false),
-    db().from("products").select("id", { count: "exact", head: true }).eq("hidden", true),
     getStores(),
     codeStatus(),
     db().from("gifts").select("id", { count: "exact", head: true }).eq("bought", false).or(`secret.eq.false,added_by.eq.${me}`),
@@ -47,12 +45,6 @@ export default async function BeheerPage() {
       <section aria-label="Onderdelen" className="space-y-2">
         <h2 className="px-1 text-xs font-bold uppercase tracking-wider text-muted">Onderdelen</h2>
         <ul className="divide-y divide-line overflow-hidden rounded-2xl border border-line bg-surface">
-          <NavRow
-            href="/beheer/producten"
-            Icon={IconStar}
-            title="Vaste producten"
-            sub={`${productCount.count ?? 0} actief${hiddenCount.count ? ` · ${hiddenCount.count} verborgen` : ""}`}
-          />
           <NavRow
             href={`/beheer/route/${stores.find((s) => s.is_default)?.id ?? stores[0]?.id}`}
             Icon={IconDown}

@@ -6,7 +6,8 @@ import { bumpVersion } from "@/lib/version";
 import { TAG_CATALOGUS, TAG_PRIJZEN, getWeekSchedule } from "@/lib/data";
 import { WEEKDAYS, weekdayIndex } from "@/lib/schedule";
 import { TAG_MENSEN } from "@/lib/people";
-import { TAG_SOORTEN } from "@/lib/categorize";
+import { TAG_SOORTEN, categoryOf, getCategoryMemory } from "@/lib/categorize";
+import { departmentForCategory, isCategory } from "@/lib/categories";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { db, check } from "@/lib/db";
@@ -128,18 +129,71 @@ export async function saveProduct(_prev: ProductFormState, formData: FormData): 
   redirect("/beheer/producten");
 }
 
-/** Vanuit het dashboard: een vaak gekocht los product vast maken (afdeling later in Beheer). */
-export async function makeFixedProduct(name: string) {
+/**
+ * Een los product vast maken (vanuit bon, lijst of dashboard). De afdeling wordt per winkel meteen ingevuld
+ * op basis van de soort product (woordenlijst/geheugen), zodat je dat niet in Beheer hoeft te doen.
+ * Bestaat er al een vast product met precies deze naam, dan wordt dat gebruikt. Geeft het product-id terug.
+ */
+export async function makeFixedProduct(name: string, opts: { description?: string | null; quantity?: number; category?: string | null } = {}) {
   await requirePerson();
   const clean = name.trim().replace(/\s+/g, " ").slice(0, 80);
-  if (!clean) return;
-  const store = check(await db().from("stores").select("id").eq("is_default", true).maybeSingle(), "winkel") as { id: string } | null;
-  const row = check(
-    await db().from("products").insert({ name: clean, default_store_id: store?.id ?? null }).select("id").single(),
-    "vast product",
-  ) as { id: string };
-  // Losse lijstregels met dezelfde naam aan het nieuwe product koppelen
-  check(await db().from("list_items").update({ product_id: row.id }).is("product_id", null).ilike("name", clean), "lijst koppelen");
+  if (!clean) return null;
+  const existing = check(await db().from("products").select("id").ilike("name", clean).is("description", null).maybeSingle(), "vast product") as {
+    id: string;
+  } | null;
+  let id = existing?.id ?? null;
+  if (!id) {
+    const store = check(await db().from("stores").select("id").eq("is_default", true).maybeSingle(), "winkel") as { id: string } | null;
+    const row = check(
+      await db()
+        .from("products")
+        .insert({
+          name: clean.charAt(0).toUpperCase() + clean.slice(1),
+          description: opts.description?.trim().slice(0, 160) || null,
+          default_quantity: Math.max(1, Math.min(99, Math.round(opts.quantity ?? 1))),
+          default_store_id: store?.id ?? null,
+        })
+        .select("id")
+        .single(),
+      "vast product",
+    ) as { id: string };
+    id = row.id;
+    // Afdeling per winkel uit de soort product
+    const memory = await getCategoryMemory();
+    const category = opts.category && isCategory(opts.category) ? opts.category : categoryOf({ name: clean }, memory);
+    if (category) {
+      const deps = check(await db().from("departments").select("id, name, store_id"), "afdelingen") as { id: string; name: string; store_id: string }[];
+      const byStore = new Map<string, { id: string; name: string }[]>();
+      for (const d of deps) byStore.set(d.store_id, [...(byStore.get(d.store_id) ?? []), d]);
+      const rows = [...byStore].flatMap(([storeId, list]) => {
+        const dep = departmentForCategory(category, list);
+        return dep ? [{ product_id: id!, store_id: storeId, department_id: dep }] : [];
+      });
+      if (rows.length) check(await db().from("product_store_department").upsert(rows), "afdelingen");
+    }
+  }
+  // Losse lijstregels met dezelfde naam aan het (nieuwe) product koppelen
+  check(await db().from("list_items").update({ product_id: id }).is("product_id", null).eq("archived", false).ilike("name", clean), "lijst koppelen");
+  refresh();
+  return id;
+}
+
+/** Knop op de lijst: deze losse regel vast maken (met omschrijving, aantal en afdeling van de regel). */
+export async function makeFixedFromItem(itemId: string, edits: { name?: string; note?: string; category?: string | null } = {}) {
+  await requirePerson();
+  const item = check(await db().from("list_items").select("name, description, quantity, category, product_id").eq("id", itemId).maybeSingle(), "regel") as {
+    name: string;
+    description: string | null;
+    quantity: number;
+    category: string | null;
+    product_id: string | null;
+  } | null;
+  if (!item || item.product_id) return;
+  // Wat in het wijzigvak is aangepast gaat mee
+  const name = edits.name?.trim() || item.name;
+  const description = edits.note !== undefined ? edits.note.trim() || null : item.description;
+  const id = await makeFixedProduct(name, { description, quantity: item.quantity, category: edits.category ?? item.category });
+  if (id) check(await db().from("list_items").update({ product_id: id, name, description }).eq("id", itemId), "koppelen");
   refresh();
 }
 

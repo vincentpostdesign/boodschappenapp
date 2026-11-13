@@ -9,6 +9,7 @@ import { SwipeToDelete } from "./SwipeToDelete";
 import type { PersonId } from "@/lib/types";
 import { CATEGORIES } from "@/lib/categories";
 import { archiveCheckedItems, setItemCategory } from "@/app/actions";
+import { makeFixedFromItem } from "@/app/beheer-actions";
 
 export type ViewItem = {
   id: string;
@@ -22,6 +23,7 @@ export type ViewItem = {
   waiting?: boolean; // offline toegevoegd, nog niet bij de server
   category?: string | null; // soort product (bepaalt de afdeling als er geen vaste koppeling is)
   movable?: boolean; // afdeling volgt uit de soort, dus met de hand te verplaatsen
+  fixed?: boolean; // hoort bij een vast product
   // Cashback-actie in Scoupy; here = geldt bij de gekozen winkel
   scoupy?: { label: string; product: string; stores: string; here: boolean; storeName: string; until: string } | null;
 };
@@ -256,6 +258,7 @@ function EditPanel({ item, onClose }: { item: ViewItem; onClose: () => void }) {
   const [name, setName] = useState(item.name);
   const [note, setNote] = useState(item.description ?? "");
   const [category, setCategory] = useState(item.category ?? "overig");
+  const [making, setMaking] = useState(false);
   const [, start] = useTransition();
   const field = "h-11 w-full min-w-0 rounded-xl border border-line bg-surface px-3 text-[16px] outline-none focus:border-accent";
 
@@ -300,6 +303,22 @@ function EditPanel({ item, onClose }: { item: ViewItem; onClose: () => void }) {
             ))}
           </select>
         </label>
+      )}
+      {!item.fixed && !item.waiting && (
+        <button
+          type="button"
+          disabled={making || !name.trim()}
+          onClick={() => {
+            setMaking(true);
+            start(async () => {
+              await makeFixedFromItem(item.id, { name: name.trim(), note: note.trim(), category: item.movable ? category : null });
+              onClose();
+            });
+          }}
+          className="flex h-11 w-full items-center justify-center gap-2 rounded-xl border border-line bg-surface text-[15px] font-medium text-accent disabled:opacity-50"
+        >
+          {making ? "Vast product maken…" : "★ Maak er een vast product van"}
+        </button>
       )}
       <div className="flex gap-2 pt-1">
         <button type="button" onClick={onClose} className="h-11 flex-1 rounded-xl border border-line bg-surface text-[15px] font-medium">

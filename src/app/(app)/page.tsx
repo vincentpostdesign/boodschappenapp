@@ -63,6 +63,7 @@ export default async function ListPage() {
     cheaper: i.product_id ? cheaperElsewhere(i.product_id, defaultStore.id, prices, storeNames) : null,
     category: categoryOf(i, memory),
     movable: memoryReady(memory) && !(i.product_id && mapping.get(i.product_id)),
+    fixed: !!i.product_id,
     scoupy: i.checked ? null : scoupyFor(i.name),
   });
 

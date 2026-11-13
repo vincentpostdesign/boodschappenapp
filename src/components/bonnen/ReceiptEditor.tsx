@@ -3,6 +3,7 @@
 import { useState, useTransition } from "react";
 import { deleteReceipt, saveReceipt } from "@/app/bon-actions";
 import { addFreeItem, addProducts } from "@/app/actions";
+import { makeFixedProduct } from "@/app/beheer-actions";
 import { checkTotal } from "@/lib/receipt";
 import { IconCheck, IconList, IconPlus, IconTrash } from "../icons";
 
@@ -29,6 +30,10 @@ export function ReceiptEditor({
   stores: { id: string; name: string }[];
   products: { id: string; label: string }[];
 }) {
+  // Vaste producten die hier net zijn aangemaakt (staan nog niet in de lijst van de server)
+  const [madeProducts, setMadeProducts] = useState<{ id: string; label: string }[]>([]);
+  const [making, setMaking] = useState<number | null>(null);
+  const allProducts = [...madeProducts, ...products];
   // Bedragen als tekst bewerken (komma), pas bij opslaan omzetten.
   const [rows, setRows] = useState(initial.map((l) => ({ ...l, qtyText: String(l.quantity).replace(".", ","), priceText: fmt(l.price) })));
   const [storeId, setStoreId] = useState(receipt.store_id ?? "");
@@ -173,12 +178,30 @@ export function ReceiptEditor({
               <input inputMode="decimal" value={r.priceText} onChange={(e) => update(i, { priceText: e.target.value })} aria-label="Bedrag" className={`${field} text-right tabular-nums`} />
               <select
                 value={r.product_id ?? ""}
-                onChange={(e) => update(i, { product_id: e.target.value || null })}
+                disabled={making === i}
+                onChange={async (e) => {
+                  const v = e.target.value;
+                  if (v !== "__nieuw__") return update(i, { product_id: v || null });
+                  // Nieuw vast product van deze bonregel; afdelingen vult de app zelf in.
+                  setMaking(i);
+                  try {
+                    const id = await makeFixedProduct(r.raw_name);
+                    if (id) {
+                      if (!allProducts.some((p) => p.id === id)) setMadeProducts((m) => [{ id, label: r.raw_name }, ...m]);
+                      update(i, { product_id: id });
+                    }
+                  } catch (err) {
+                    setError((err as Error).message);
+                  } finally {
+                    setMaking(null);
+                  }
+                }}
                 aria-label="Vast product"
                 className={`${field} min-w-0 text-sm ${r.product_id ? "text-ink" : "text-muted"}`}
               >
-                <option value="">Geen vast product</option>
-                {products.map((p) => (
+                <option value="">{making === i ? "Vast product maken…" : "Geen vast product"}</option>
+                {!r.product_id && r.raw_name.trim() && num(r.priceText) > 0 && <option value="__nieuw__">★ Nieuw vast product hiervan maken</option>}
+                {allProducts.map((p) => (
                   <option key={p.id} value={p.id}>{p.label}</option>
                 ))}
               </select>
