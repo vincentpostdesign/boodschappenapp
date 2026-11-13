@@ -1,7 +1,7 @@
 "use server";
 
 import { cookies } from "next/headers";
-import { revalidatePath } from "next/cache";
+import { revalidatePath, revalidateTag } from "next/cache";
 import { after } from "next/server";
 import { bumpVersion } from "@/lib/version";
 import { redirect } from "next/navigation";
@@ -9,7 +9,7 @@ import { db, check } from "@/lib/db";
 import { LONG_COOKIE, PERSON_COOKIE, STORE_COOKIE, isPersonId, requirePerson } from "@/lib/session";
 import { matchProduct, normalize } from "@/lib/route";
 import { parseQuantity } from "@/lib/quantity";
-import { getProducts } from "@/lib/data";
+import { TAG_CATALOGUS, getProducts } from "@/lib/data";
 import { ACCESS_COOKIE, verifyAccessToken } from "@/lib/access";
 import type { Product } from "@/lib/types";
 import { isCategory } from "@/lib/categories";
@@ -188,13 +188,22 @@ export async function archiveCheckedItems() {
   refresh();
 }
 
-/** Naam en opmerking van een regel op de lijst wijzigen (alleen deze regel, niet het vaste product). */
+/**
+ * Naam en opmerking van een regel op de lijst wijzigen. Hoort de regel bij een vast product,
+ * dan onthoudt het vaste product dit ook, zodat het de volgende keer zo op de lijst komt.
+ */
 export async function editItem(itemId: string, name: string, note: string) {
   await requirePerson();
   const n = name.trim().replace(/\s+/g, " ").slice(0, 120);
   if (!n) throw new Error("Naam is verplicht");
-  const d = note.trim().replace(/\s+/g, " ").slice(0, 160);
-  check(await db().from("list_items").update({ name: n, description: d || null }).eq("id", itemId).eq("archived", false), "wijzigen");
+  const d = note.trim().replace(/\s+/g, " ").slice(0, 160) || null;
+  const row = check(await db().from("list_items").select("product_id").eq("id", itemId).maybeSingle(), "regel") as { product_id: string | null } | null;
+  check(await db().from("list_items").update({ name: n, description: d }).eq("id", itemId).eq("archived", false), "wijzigen");
+  if (row?.product_id) {
+    check(await db().from("products").update({ name: n.slice(0, 80), description: d }).eq("id", row.product_id), "vast product onthouden");
+    check(await db().from("list_items").update({ name: n, description: d }).eq("product_id", row.product_id).eq("archived", false), "lijst bijwerken");
+    revalidateTag(TAG_CATALOGUS); // vaste producten staan in de cache
+  }
   refresh();
 }
 

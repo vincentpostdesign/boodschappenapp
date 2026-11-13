@@ -3,7 +3,7 @@
 import { useState, useTransition } from "react";
 import { deleteReceipt, saveReceipt } from "@/app/bon-actions";
 import { addFreeItem, addProducts } from "@/app/actions";
-import { makeFixedProduct } from "@/app/beheer-actions";
+import { makeFixedProduct, renameProductFromReceipt } from "@/app/beheer-actions";
 import { checkTotal } from "@/lib/receipt";
 import { IconCheck, IconList, IconPlus, IconTrash } from "../icons";
 
@@ -33,7 +33,8 @@ export function ReceiptEditor({
   // Vaste producten die hier net zijn aangemaakt (staan nog niet in de lijst van de server)
   const [madeProducts, setMadeProducts] = useState<{ id: string; label: string }[]>([]);
   const [making, setMaking] = useState<number | null>(null);
-  const allProducts = [...madeProducts, ...products];
+  // Net gemaakte of hernoemde producten gaan voor (zelfde id: nieuwe naam tonen)
+  const allProducts = [...madeProducts, ...products.filter((p) => !madeProducts.some((m) => m.id === p.id))];
   // Bedragen als tekst bewerken (komma), pas bij opslaan omzetten.
   const [rows, setRows] = useState(initial.map((l) => ({ ...l, qtyText: String(l.quantity).replace(".", ","), priceText: fmt(l.price) })));
   const [storeId, setStoreId] = useState(receipt.store_id ?? "");
@@ -181,7 +182,15 @@ export function ReceiptEditor({
                 disabled={making === i}
                 onChange={async (e) => {
                   const v = e.target.value;
-                  if (v !== "__nieuw__") return update(i, { product_id: v || null });
+                  if (v !== "__nieuw__") {
+                    update(i, { product_id: v || null });
+                    // Met de hand gekoppeld: het vaste product krijgt de naam van de bon (zoals het in de winkel heet).
+                    if (v && r.raw_name.trim()) {
+                      setMadeProducts((m) => [{ id: v, label: r.raw_name.trim() }, ...m.filter((p) => p.id !== v)]);
+                      renameProductFromReceipt(v, r.raw_name).catch((err) => setError((err as Error).message));
+                    }
+                    return;
+                  }
                   // Nieuw vast product van deze bonregel; afdelingen vult de app zelf in.
                   setMaking(i);
                   try {

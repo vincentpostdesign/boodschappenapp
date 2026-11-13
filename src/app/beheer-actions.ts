@@ -197,6 +197,19 @@ export async function makeFixedFromItem(itemId: string, edits: { name?: string; 
   refresh();
 }
 
+/**
+ * Bonregel met de hand aan een vast product gekoppeld: het vaste product krijgt de naam van de bon
+ * (zoals het in de winkel echt heet). Openstaande regels op de lijst gaan mee.
+ */
+export async function renameProductFromReceipt(productId: string, receiptName: string) {
+  await requirePerson();
+  const name = receiptName.trim().replace(/\s+/g, " ").slice(0, 80);
+  if (!name) return;
+  check(await db().from("products").update({ name }).eq("id", productId), "naam van de bon");
+  check(await db().from("list_items").update({ name }).eq("product_id", productId).eq("archived", false), "lijst bijwerken");
+  refresh();
+}
+
 export async function setProductHidden(id: string, hidden: boolean) {
   await requirePerson();
   check(await db().from("products").update({ hidden }).eq("id", id), "verbergen");
