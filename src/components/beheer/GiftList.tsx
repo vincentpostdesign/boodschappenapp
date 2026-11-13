@@ -147,7 +147,7 @@ export function GiftList({ gifts, me, initial }: { gifts: Gift[]; me: PersonId; 
         </>
       )}
       <p className="px-1 text-xs text-muted">
-        Tik op een cadeau voor prijs, link en notitie. Vink af als het gekocht is, veeg naar links om te verwijderen. Een slotje betekent: alleen jij ziet het.
+        Tik op de naam van een cadeau om de prijs, een link of een notitie in te vullen of te wijzigen. Vink af als het gekocht is, veeg naar links om te verwijderen. Een slotje betekent: alleen jij ziet het.
       </p>
     </div>
   );
@@ -173,7 +173,11 @@ function GiftRow({ gift: g, open, onOpen, onToggle }: { gift: Gift; open: boolea
             {g.secret && <span aria-label="Geheim, alleen jij ziet dit">🔒 </span>}
             {g.name}
           </span>
-          {sub && <span className="block truncate text-sm text-muted">{sub}</span>}
+          {sub ? (
+            <span className="block truncate text-sm text-muted">{sub}</span>
+          ) : (
+            <span className="block text-sm font-medium text-accent">+ prijs</span>
+          )}
         </span>
         {g.link && <span className="shrink-0 text-xs font-medium text-accent">link</span>}
         <PersonDot person={g.addedBy} />
@@ -185,6 +189,7 @@ function GiftRow({ gift: g, open, onOpen, onToggle }: { gift: Gift; open: boolea
 function QuickAdd({ occasion, recipients }: { occasion: OccasionId; recipients: string[] }) {
   const [name, setName] = useState("");
   const [who, setWho] = useState("");
+  const [price, setPrice] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [pending, start] = useTransition();
   const ref = useRef<HTMLInputElement>(null);
@@ -195,11 +200,13 @@ function QuickAdd({ occasion, recipients }: { occasion: OccasionId; recipients: 
     fd.set("name", name);
     fd.set("recipient", who);
     fd.set("occasion", occasion);
+    fd.set("price", price);
     start(async () => {
       const res = await saveGift(undefined, fd);
       if (res?.error) return setError(res.error);
       setError(null);
       setName("");
+      setPrice("");
       ref.current?.focus();
     });
   };
@@ -225,16 +232,27 @@ function QuickAdd({ occasion, recipients }: { occasion: OccasionId; recipients: 
           <IconPlus className="h-7 w-7" />
         </button>
       </div>
-      <input
-        value={who}
-        onChange={(e) => setWho(e.target.value)}
-        list="cadeau-voor"
-        placeholder="Voor wie? (mag leeg)"
-        aria-label="Voor wie"
-        autoComplete="off"
-        maxLength={60}
-        className={input}
-      />
+      <div className="grid grid-cols-[1fr_7rem] gap-2 [&>*]:min-w-0">
+        <input
+          value={who}
+          onChange={(e) => setWho(e.target.value)}
+          list="cadeau-voor"
+          placeholder="Voor wie? (mag leeg)"
+          aria-label="Voor wie"
+          autoComplete="off"
+          maxLength={60}
+          className={input}
+        />
+        <input
+          value={price}
+          onChange={(e) => setPrice(e.target.value)}
+          placeholder="€ prijs"
+          aria-label="Prijs (mag leeg)"
+          inputMode="decimal"
+          autoComplete="off"
+          className={input}
+        />
+      </div>
       <datalist id="cadeau-voor">
         {recipients.map((r) => (
           <option key={r} value={r} />
