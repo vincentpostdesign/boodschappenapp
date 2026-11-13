@@ -11,6 +11,8 @@ import {
 } from "@/lib/data";
 import { groupByRoute } from "@/lib/route";
 import { after } from "next/server";
+import { getScoupyDeals } from "@/lib/scoupy-store";
+import { dealMatches, type ScoupyDeal } from "@/lib/scoupy";
 import { departmentForCategory } from "@/lib/categories";
 import { categorizeUnknown, categoryOf, getCategoryMemory, memoryReady } from "@/lib/categorize";
 import { cheaperElsewhere } from "@/lib/prices/cheaper";
@@ -23,7 +25,7 @@ export const dynamic = "force-dynamic";
 export default async function ListPage() {
   const me = await requirePerson();
   const { store, defaultStore, stores } = await getActiveStore();
-  const [departments, mapping, items, prices, shopper, products, memory] = await Promise.all([
+  const [departments, mapping, items, prices, shopper, products, memory, scoupy] = await Promise.all([
     getDepartments(store.id),
     getProductDepartments(store.id),
     getActiveItems(),
@@ -31,7 +33,13 @@ export default async function ListPage() {
     getShopper(),
     getProducts(),
     getCategoryMemory(),
+    getScoupyDeals().catch(() => [] as ScoupyDeal[]),
   ]);
+  // Scoupy-actie bij deze regel (bijv. "Optimel" → Optimel drinkyoghurt voor €0,01 bij de Albert Heijn).
+  const scoupyFor = (name: string) => {
+    const d = scoupy.find((x) => dealMatches(name, x));
+    return d ? { label: d.short || "cashback", product: d.product, stores: d.stores.length >= 4 ? "" : d.stores.join(", "), until: shortDate(d.ends) } : null;
+  };
   // Losse regels die nog niet ingedeeld kunnen worden: Claude doet dat op de achtergrond.
   if (memoryReady(memory) && items.some((i) => !i.product_id && !categoryOf(i, memory))) after(() => categorizeUnknown().catch(() => 0));
   // Afdeling: vast product met een gekoppelde afdeling, anders op soort product (los ingetypt of nog niet gekoppeld).
@@ -50,6 +58,7 @@ export default async function ListPage() {
     cheaper: i.product_id ? cheaperElsewhere(i.product_id, defaultStore.id, prices, storeNames) : null,
     category: categoryOf(i, memory),
     movable: memoryReady(memory) && !(i.product_id && mapping.get(i.product_id)),
+    scoupy: i.checked ? null : scoupyFor(i.name),
   });
 
   const open = items.filter((i) => !i.checked);

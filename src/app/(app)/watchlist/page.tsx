@@ -7,6 +7,10 @@ import { photoUrl } from "@/lib/vision";
 import { WatchOffers } from "@/components/watchlist/WatchOffers";
 import { NotifyMode } from "@/components/watchlist/NotifyMode";
 import { IconCamera, IconPlus } from "@/components/icons";
+import { ScoupyDeals, type ScoupyView } from "@/components/watchlist/ScoupyDeals";
+import { getScoupy } from "@/lib/scoupy-store";
+import { dealMatches, type ScoupyDeal } from "@/lib/scoupy";
+import { shortDate } from "@/lib/dates";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Watchlist · Boodschappen" };
@@ -41,7 +45,7 @@ export default async function WatchlistPage({ searchParams }: { searchParams: Pr
   await requirePerson();
   const sp = await searchParams;
   const today = todayNL();
-  const [itemsRes, hitsRes, stores, mode, refreshedAt] = await Promise.all([
+  const [itemsRes, hitsRes, stores, mode, refreshedAt, scoupy, listRes] = await Promise.all([
     db().from("watchlist_items").select("id, name, brand, content, photo_path, image_url, max_price, min_discount_pct").order("name"),
     db()
       .from("watchlist_hits")
@@ -50,7 +54,24 @@ export default async function WatchlistPage({ searchParams }: { searchParams: Pr
     getStores(),
     getSetting<string>("watchlist_notify", "direct"),
     getSetting<string | null>("offers_refreshed_at", null),
+    getScoupy().catch(() => ({ at: null, deals: [] as ScoupyDeal[] })),
+    db().from("list_items").select("name").eq("archived", false).eq("checked", false),
   ]);
+  const listNames = ((listRes.data ?? []) as { name: string }[]).map((l) => l.name);
+  const scoupyView: ScoupyView[] = scoupy.deals.map((d) => ({
+    id: d.id,
+    title: d.title,
+    product: d.product,
+    brand: d.brand,
+    short: d.short,
+    stores: d.stores.length >= 4 ? "Bijna overal" : d.stores.join(", "),
+    until: shortDate(d.ends),
+    image: d.image,
+    onList: listNames.some((n) => dealMatches(n, d)),
+  }));
+  const scoupyUpdated = scoupy.at
+    ? new Intl.DateTimeFormat("nl-NL", { weekday: "short", hour: "2-digit", minute: "2-digit", timeZone: "Europe/Amsterdam" }).format(new Date(scoupy.at))
+    : null;
   const items = check(itemsRes, "watchlist") as Item[];
   const hits = (check(hitsRes, "treffers") as unknown as Hit[]).filter((h) => h.offer);
   const storeNames = Object.fromEntries(stores.map((s) => [s.id, s.name]));
@@ -114,6 +135,8 @@ export default async function WatchlistPage({ searchParams }: { searchParams: Pr
       </div>
 
       <WatchOffers items={view} focusHit={sp.hit ?? null} autoAdd={sp.toevoegen === "1"} />
+
+      <ScoupyDeals deals={scoupyView} updated={scoupyUpdated} />
 
       <section className="space-y-2">
         <h2 className="px-1 text-xs font-bold uppercase tracking-wider text-muted">Meldingen bij een goede aanbieding</h2>
