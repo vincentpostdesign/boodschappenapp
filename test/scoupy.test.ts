@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
-import { dealMatches, isCurrent, parseScoupyHtml, type ScoupyDeal } from "../src/lib/scoupy";
+import { dealMatches, isCurrent, parseScoupyHtml, storeList, validAt, type ScoupyDeal } from "../src/lib/scoupy";
 
 const html = readFileSync(join(__dirname, "fixtures", "scoupy.html"), "utf8");
 
@@ -34,6 +34,23 @@ describe("dealMatches", () => {
     expect(dealMatches("Yoghurt", optimel)).toBe(false);
     expect(dealMatches("Melk", optimel)).toBe(false);
     expect(dealMatches("", optimel)).toBe(false);
+  });
+});
+
+describe("winkels", () => {
+  const ah = { stores: ["Albert Heijn"] } as ScoupyDeal;
+  const overal = { stores: ["Albert Heijn", "Jumbo", "ALDI", "Lidl", "PLUS"] } as ScoupyDeal;
+  it("weet bij welke winkel een actie geldt", () => {
+    expect(validAt(ah, "Albert Heijn")).toBe(true);
+    expect(validAt(ah, "Aldi")).toBe(false);
+    expect(validAt(overal, "Aldi")).toBe(true);
+    expect(validAt(overal, "Plus")).toBe(true);
+    expect(validAt({ stores: [] } as unknown as ScoupyDeal, "Aldi")).toBe(true);
+  });
+  it("noemt de winkels kort", () => {
+    expect(storeList(ah)).toBe("AH");
+    expect(storeList(overal)).toBe("AH, Jumbo, Aldi, Lidl, Plus");
+    expect(storeList({ stores: [] } as unknown as ScoupyDeal)).toBe("alle winkels");
   });
 });
 

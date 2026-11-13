@@ -22,7 +22,8 @@ export type ViewItem = {
   waiting?: boolean; // offline toegevoegd, nog niet bij de server
   category?: string | null; // soort product (bepaalt de afdeling als er geen vaste koppeling is)
   movable?: boolean; // afdeling volgt uit de soort, dus met de hand te verplaatsen
-  scoupy?: { label: string; product: string; stores: string; until: string } | null; // cashback-actie in Scoupy
+  // Cashback-actie in Scoupy; here = geldt bij de gekozen winkel
+  scoupy?: { label: string; product: string; stores: string; here: boolean; storeName: string; until: string } | null;
 };
 
 type Group = { key: string; name: string; items: ViewItem[] };
@@ -213,12 +214,14 @@ function Row({
             )}
             {item.scoupy && !checked && (
               <span
-                title={`Scoupy: ${item.scoupy.product}${item.scoupy.stores ? ` (${item.scoupy.stores})` : ""} t/m ${item.scoupy.until}`}
-                className="inline-flex max-w-full items-center gap-1 rounded-md bg-[#fde8ec] px-1.5 py-0.5 text-xs font-semibold text-[#b0213e]"
+                title={`Scoupy: ${item.scoupy.product} · geldt bij ${item.scoupy.stores} · t/m ${item.scoupy.until}`}
+                className={`inline-flex max-w-full items-center gap-1 rounded-md px-1.5 py-0.5 text-xs font-semibold ${
+                  item.scoupy.here ? "bg-[#fde8ec] text-[#b0213e]" : "bg-surface-2 text-muted"
+                }`}
               >
                 <span className="truncate">
-                  Scoupy {item.scoupy.label}
-                  {item.scoupy.stores ? ` · ${item.scoupy.stores}` : ""} · t/m {item.scoupy.until}
+                  Scoupy {item.scoupy.label} ·{" "}
+                  {item.scoupy.here ? `geldt bij ${item.scoupy.storeName}` :`niet bij ${item.scoupy.storeName}, wel bij ${item.scoupy.stores}`} · t/m {item.scoupy.until}
                 </span>
               </span>
             )}

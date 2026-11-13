@@ -99,6 +99,25 @@ export function isCurrent(d: ScoupyDeal, now = new Date()): boolean {
   return new Date(d.ends) >= now && new Date(d.starts).getTime() - now.getTime() < 24 * 3600_000;
 }
 
+/** Korte winkelnaam zoals in de app ("Albert Heijn" → "AH", "ALDI" → "Aldi"). */
+export function shortStore(name: string): string {
+  const n = normalize(name);
+  if (n === "albert heijn" || n === "ah") return "AH";
+  return n.replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
+/** Geldt de actie bij deze winkel? Geen winkels genoemd = overal. */
+export function validAt(d: ScoupyDeal, storeName: string): boolean {
+  if (!d.stores.length) return true;
+  const want = shortStore(storeName);
+  return d.stores.some((s) => shortStore(s) === want);
+}
+
+/** "AH, Jumbo, Aldi, Lidl, Plus" of "alle winkels". */
+export function storeList(d: ScoupyDeal): string {
+  return d.stores.length ? d.stores.map(shortStore).join(", ") : "alle winkels";
+}
+
 const STOP = new Set(["de", "het", "een", "van", "voor", "met", "en", "of", "ml", "l", "g", "kg", "cl", "st", "stuks", "pak", "fles", "extra", "original", "classic"]);
 const words = (s: string) => normalize(s).split(" ").filter((w) => w.length > 2 && !STOP.has(w) && !/^\d/.test(w));
 

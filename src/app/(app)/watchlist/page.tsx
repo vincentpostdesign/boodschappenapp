@@ -9,7 +9,7 @@ import { NotifyMode } from "@/components/watchlist/NotifyMode";
 import { IconCamera, IconPlus } from "@/components/icons";
 import { ScoupyDeals, type ScoupyView } from "@/components/watchlist/ScoupyDeals";
 import { getScoupy } from "@/lib/scoupy-store";
-import { dealMatches, type ScoupyDeal } from "@/lib/scoupy";
+import { dealMatches, storeList, type ScoupyDeal } from "@/lib/scoupy";
 import { shortDate } from "@/lib/dates";
 
 export const dynamic = "force-dynamic";
@@ -64,7 +64,7 @@ export default async function WatchlistPage({ searchParams }: { searchParams: Pr
     product: d.product,
     brand: d.brand,
     short: d.short,
-    stores: d.stores.length >= 4 ? "Bijna overal" : d.stores.join(", "),
+    stores: storeList(d),
     until: shortDate(d.ends),
     image: d.image,
     onList: listNames.some((n) => dealMatches(n, d)),

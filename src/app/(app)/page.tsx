@@ -12,7 +12,7 @@ import {
 import { groupByRoute } from "@/lib/route";
 import { after } from "next/server";
 import { getScoupyDeals } from "@/lib/scoupy-store";
-import { dealMatches, type ScoupyDeal } from "@/lib/scoupy";
+import { dealMatches, storeList, validAt, type ScoupyDeal } from "@/lib/scoupy";
 import { departmentForCategory } from "@/lib/categories";
 import { categorizeUnknown, categoryOf, getCategoryMemory, memoryReady } from "@/lib/categorize";
 import { cheaperElsewhere } from "@/lib/prices/cheaper";
@@ -36,9 +36,12 @@ export default async function ListPage() {
     getScoupyDeals().catch(() => [] as ScoupyDeal[]),
   ]);
   // Scoupy-actie bij deze regel (bijv. "Optimel" → Optimel drinkyoghurt voor €0,01 bij de Albert Heijn).
+  // Een actie die bij de gekozen winkel geldt gaat voor; anders tonen we bij welke winkels hij wél geldt.
   const scoupyFor = (name: string) => {
-    const d = scoupy.find((x) => dealMatches(name, x));
-    return d ? { label: d.short || "cashback", product: d.product, stores: d.stores.length >= 4 ? "" : d.stores.join(", "), until: shortDate(d.ends) } : null;
+    const hits = scoupy.filter((x) => dealMatches(name, x));
+    const d = hits.find((x) => validAt(x, store.name)) ?? hits[0];
+    if (!d) return null;
+    return { label: d.short || "cashback", product: d.product, stores: storeList(d), here: validAt(d, store.name), storeName: store.name, until: shortDate(d.ends) };
   };
   // Losse regels die nog niet ingedeeld kunnen worden: Claude doet dat op de achtergrond.
   if (memoryReady(memory) && items.some((i) => !i.product_id && !categoryOf(i, memory))) after(() => categorizeUnknown().catch(() => 0));
