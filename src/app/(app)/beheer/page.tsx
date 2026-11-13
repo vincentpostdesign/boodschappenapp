@@ -77,10 +77,6 @@ export default async function BeheerPage() {
             Deze telefoon afmelden
           </button>
         </form>
-        {/* Tijdelijk: meten wat de iPhone doorgeeft over de statusbalk */}
-        <a href="/beheer?scherm=test" className="block py-2 text-center text-sm text-muted underline">
-          Schermtest (tijdelijk)
-        </a>
       </section>
     </div>
   );

@@ -6,7 +6,6 @@ import { BackToTop } from "@/components/BackToTop";
 import { LiveSync } from "@/components/LiveSync";
 import { ViewportFix } from "@/components/ViewportFix";
 import { OfflineStatus } from "@/components/OfflineStatus";
-import { ScreenProbe } from "@/components/ScreenProbe";
 import { getAvatarUrls } from "@/lib/people";
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
@@ -15,12 +14,14 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   return (
     <AvatarProvider urls={avatars}>
       {/*
-        Vlak achter de statusbalk (iPhone-app op beginscherm). iOS laat het scherm van de app onder de statusbalk
-        beginnen (geen veilige marge, env = 0), maar tekent gescrolde inhoud tóch boven die rand, achter de klok.
-        Daarom staat dit vlak bóven de bovenrand (top: -120px) en loopt het door tot de eventuele veilige marge.
+        Vervaging bovenin (zoals in de Claude-app). iOS laat het scherm onder de klok beginnen en tekent wat je
+        wegscrolt zelf, vaag, achter de klok; daar kan de app niets overheen leggen. Deze overgang van achtergrondkleur
+        naar doorzichtig laat de inhoud al vervagen vóór hij onder de klok verdwijnt.
       */}
-      <div aria-hidden data-statusvlak className="fixed inset-x-0 top-[-120px] z-40 h-[calc(120px+env(safe-area-inset-top))] bg-bg" />
-      <ScreenProbe />
+      <div
+        aria-hidden
+        className="pointer-events-none fixed inset-x-0 top-0 z-30 h-[calc(1.75rem+env(safe-area-inset-top))] bg-gradient-to-b from-bg via-bg/80 to-transparent md:hidden"
+      />
       <TopNav />
       <main className="mx-auto w-full max-w-3xl px-4 pt-[max(1rem,env(safe-area-inset-top))] pb-nav md:pt-6 md:pb-12">{children}</main>
       <BottomNav />
