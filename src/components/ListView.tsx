@@ -29,7 +29,7 @@ export type ViewItem = {
 type Group = { key: string; name: string; items: ViewItem[] };
 
 /** Voorstel bij het intypen: een vast product of een product van jullie eigen bonnen. */
-export type Suggestion = { name: string; from: "vast" | "bon" };
+export type Suggestion = { name: string; from: "vast" | "bon" | "scoupy"; note?: string };
 
 const euroDiff = (n: number) => `−€${n.toFixed(2).replace(".", ",")}`;
 
@@ -330,7 +330,7 @@ function matchSuggestions(text: string, all: Suggestion[]): Suggestion[] {
   const scored: { s: Suggestion; score: number }[] = [];
   for (const s of all) {
     const n = plain(s.name);
-    if (n === q || !words.every((w) => n.includes(w))) continue;
+    if ((n === q && s.from !== "scoupy") || !words.every((w) => n.includes(w))) continue;
     const starts = n.startsWith(q) ? 0 : n.split(/\s+/).some((w) => w.startsWith(words[0])) ? 1 : 2;
     scored.push({ s, score: starts * 2 + (s.from === "vast" ? 0 : 1) });
   }
@@ -390,7 +390,11 @@ function AddBar({ suggestions }: { suggestions: Suggestion[] }) {
                 className="flex min-h-12 w-full items-center justify-between gap-3 border-b border-line px-4 py-2 text-left last:border-b-0"
               >
                 <span className="min-w-0 truncate text-[16px]">{m.name}</span>
-                <span className="shrink-0 text-xs text-muted">{m.from === "vast" ? "vast product" : "van de bon"}</span>
+                {m.from === "scoupy" ? (
+                  <span className="shrink-0 rounded-md bg-[#fde8ec] px-1.5 py-0.5 text-xs font-semibold text-[#b0213e]">Scoupy {m.note}</span>
+                ) : (
+                  <span className="shrink-0 text-xs text-muted">{m.from === "vast" ? "★ vast product" : "van de bon"}</span>
+                )}
               </button>
             </li>
           ))}

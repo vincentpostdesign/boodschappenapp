@@ -92,6 +92,7 @@ export default async function ListPage() {
             .filter((n) => !products.some((p) => p.name.toLowerCase() === n.toLowerCase()))
             .slice(0, 400)
             .map((name) => ({ name, from: "bon" as const })),
+          ...scoupy.map((d) => ({ name: d.product, from: "scoupy" as const, note: d.short || "cashback" })),
         ]}
         storeName={store.name}
         me={me}
