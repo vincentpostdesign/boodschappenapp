@@ -330,7 +330,7 @@ function matchSuggestions(text: string, all: Suggestion[]): Suggestion[] {
   const scored: { s: Suggestion; score: number }[] = [];
   for (const s of all) {
     const n = plain(s.name);
-    if ((n === q && s.from !== "scoupy") || !words.every((w) => n.includes(w))) continue;
+    if (!words.every((w) => n.includes(w))) continue;
     const starts = n.startsWith(q) ? 0 : n.split(/\s+/).some((w) => w.startsWith(words[0])) ? 1 : 2;
     scored.push({ s, score: starts * 2 + (s.from === "vast" ? 0 : 1) });
   }
