@@ -49,8 +49,27 @@ export default async function BonPage({ params, searchParams }: { params: Promis
     total: number | null;
     photo_path: string;
     status: string;
+    reading?: boolean;
+    read_note?: string | null;
+    created_at: string;
   } | null;
   if (!receipt) notFound();
+  const reading = !!receipt.reading && Date.now() - new Date(receipt.created_at).getTime() < 3 * 60_000;
+  const note = melding ?? (receipt.status === "nieuw" ? receipt.read_note : null);
+  if (reading) {
+    return (
+      <div className="space-y-4">
+        <BackLink href="/bonnen" label="Bonnetjes" />
+        <h1 className="text-2xl font-semibold tracking-tight">Bon wordt uitgelezen…</h1>
+        <div className="flex items-center gap-3 rounded-2xl border border-line bg-surface px-4 py-5">
+          <span className="h-6 w-6 shrink-0 animate-spin rounded-full border-[3px] border-accent/25 border-t-accent" aria-hidden />
+          <p className="text-[15px]">
+            Dit duurt meestal een halve minuut. Je kunt gewoon verder in de app; dit scherm ververst vanzelf en je krijgt een melding als het klaar is.
+          </p>
+        </div>
+      </div>
+    );
+  }
   const lines = await tidyStoredNames(
     (check(linesRes, "regels") as { id: string; raw_name: string; quantity: number; price: number; product_id: string | null }[]).map((l) => ({
       ...l,
@@ -63,8 +82,9 @@ export default async function BonPage({ params, searchParams }: { params: Promis
     <div className="space-y-4">
       <BackLink href="/bonnen" label="Bonnetjes" />
       <h1 className="text-2xl font-semibold tracking-tight">{receipt.status === "nieuw" ? "Bon controleren" : "Bon"}</h1>
-      {melding && <p className="rounded-xl bg-deal-soft px-4 py-3 text-sm text-deal">{melding}</p>}
+      {note && <p className="rounded-xl bg-deal-soft px-4 py-3 text-sm text-deal">{note}</p>}
       <ReceiptEditor
+        key={`${lines.length}-${receipt.store_id}-${receipt.total}`}
         receipt={{ ...receipt, total: receipt.total != null ? Number(receipt.total) : null }}
         lines={lines}
         photo={await photoUrl(receipt.photo_path)}

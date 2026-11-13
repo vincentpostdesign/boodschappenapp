@@ -1,15 +1,19 @@
-import { NextResponse, type NextRequest } from "next/server";
+import { NextResponse, after, type NextRequest } from "next/server";
 import { db, check } from "@/lib/db";
 import { currentPerson } from "@/lib/session";
 import { prepareImage, readReceiptPhoto, storePhoto, visionAvailable } from "@/lib/vision";
 import { applyAliases, cleanLines } from "@/lib/receipt";
+import { bumpVersion } from "@/lib/version";
+import { sendToPerson } from "@/lib/push";
+import type { PersonId } from "@/lib/types";
 
 export const maxDuration = 120;
 const MAX_BYTES = 15 * 1024 * 1024;
 
 /**
- * Bonnetje: de foto wordt meteen opgeslagen (ook als uitlezen mislukt),
- * daarna leest Claude de regels uit. Het resultaat is altijd een bon met status 'nieuw' om te controleren.
+ * Bonnetje: de foto wordt meteen opgeslagen en de app krijgt direct antwoord.
+ * Claude leest de bon daarna op de achtergrond uit (after()), zodat je intussen gewoon verder kunt in de app.
+ * Klaar → regels opgeslagen, open schermen verversen vanzelf en je krijgt een melding.
  */
 export async function POST(req: NextRequest) {
   const person = await currentPerson();
@@ -25,14 +29,30 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Dit fotoformaat wordt niet herkend. Probeer een gewone foto (JPEG)." }, { status: 415 });
   }
   const photoPath = await storePhoto("bonnen", jpeg);
+  const canRead = visionAvailable();
   const receipt = check(
-    await db().from("receipts").insert({ photo_path: photoPath, uploaded_by: person, status: "nieuw" }).select("id").single(),
+    await db()
+      .from("receipts")
+      .insert({
+        photo_path: photoPath,
+        uploaded_by: person,
+        status: "nieuw",
+        reading: canRead,
+        read_note: canRead ? null : "Automatisch uitlezen staat uit (geen Claude-sleutel). Vul de regels zelf in.",
+      })
+      .select("id")
+      .single(),
     "bon opslaan",
   ) as { id: string };
 
-  if (!visionAvailable()) {
-    return NextResponse.json({ id: receipt.id, warning: "Automatisch uitlezen staat uit (geen Claude-sleutel). Vul de regels zelf in." });
-  }
+  if (canRead) after(() => readInBackground(receipt.id, jpeg, person));
+  after(bumpVersion);
+  return NextResponse.json({ id: receipt.id, reading: canRead });
+}
+
+async function readInBackground(id: string, jpeg: Buffer, person: PersonId) {
+  let note: string | null = null;
+  let lines = 0;
   try {
     const read = await readReceiptPhoto(jpeg);
     const storeId = read.winkel === "onbekend" ? null : read.winkel;
@@ -43,19 +63,28 @@ export async function POST(req: NextRequest) {
           product_id: string;
         }[])
       : [];
-    const lines = applyAliases(cleanLines(read.regels), aliases);
+    const clean = applyAliases(cleanLines(read.regels), aliases);
+    // De bon kan intussen verwijderd zijn: dan niets meer doen.
+    const exists = check(await db().from("receipts").select("id").eq("id", id).maybeSingle(), "bon");
+    if (!exists) return;
+    if (clean.length) {
+      check(await db().from("receipt_lines").insert(clean.map((l, i) => ({ ...l, receipt_id: id, line_no: i + 1 }))), "bonregels opslaan");
+    }
+    lines = clean.length;
+    note = read.opmerking;
     check(
-      await db().from("receipts").update({ store_id: storeId, purchased_on: date, total: read.totaal }).eq("id", receipt.id),
+      await db().from("receipts").update({ store_id: storeId, purchased_on: date, total: read.totaal, reading: false, read_note: note }).eq("id", id),
       "bon bijwerken",
     );
-    if (lines.length) {
-      check(
-        await db().from("receipt_lines").insert(lines.map((l, i) => ({ ...l, receipt_id: receipt.id, line_no: i + 1 }))),
-        "bonregels opslaan",
-      );
-    }
-    return NextResponse.json({ id: receipt.id, lines: lines.length, note: read.opmerking });
   } catch (e) {
-    return NextResponse.json({ id: receipt.id, warning: `Uitlezen lukte niet: ${(e as Error).message} De foto is bewaard; vul de regels zelf in.` });
+    note = `Uitlezen lukte niet: ${(e as Error).message} De foto is bewaard; vul de regels zelf in.`.slice(0, 400);
+    await db().from("receipts").update({ reading: false, read_note: note }).eq("id", id);
   }
+  await bumpVersion();
+  await sendToPerson(person, {
+    title: lines ? "Bon uitgelezen" : "Bon kon niet worden uitgelezen",
+    body: lines ? `${lines} regels gevonden. Tik om te controleren.` : (note ?? "Vul de regels zelf in."),
+    url: `/bonnen/${id}`,
+    tag: `bon-${id}`,
+  }).catch(() => 0);
 }

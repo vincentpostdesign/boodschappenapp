@@ -9,18 +9,30 @@ import { IconChart } from "@/components/icons";
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Bonnetjes · Boodschappen" };
 
-type Row = { id: string; store_id: string | null; purchased_on: string | null; total: number | null; status: string; created_at: string; lines: { count: number }[] };
+type Row = {
+  id: string;
+  store_id: string | null;
+  purchased_on: string | null;
+  total: number | null;
+  status: string;
+  created_at: string;
+  reading: boolean;
+  lines: { count: number }[];
+};
+
+/** Nog bezig met uitlezen? (Na 3 minuten is er iets misgegaan; dan gewoon tonen als te controleren.) */
+const stillReading = (r: { reading: boolean; created_at: string }) => r.reading && Date.now() - new Date(r.created_at).getTime() < 3 * 60_000;
 
 export default async function BonnenPage() {
   await requirePerson();
   const [res, stores] = await Promise.all([
-    db().from("receipts").select("id, store_id, purchased_on, total, status, created_at, lines:receipt_lines(count)").order("created_at", { ascending: false }).limit(100),
+    db().from("receipts").select("id, store_id, purchased_on, total, status, created_at, reading, lines:receipt_lines(count)").order("created_at", { ascending: false }).limit(100),
     getStores(),
   ]);
   const rows = check(res, "bonnen") as unknown as Row[];
   const names = Object.fromEntries(stores.map((s) => [s.id, s.name]));
   const fmt = (d: string) => new Intl.DateTimeFormat("nl-NL", { weekday: "short", day: "numeric", month: "short", timeZone: "UTC" }).format(new Date(`${d}T12:00:00Z`)).replace(/\./g, "");
-  const open = rows.filter((r) => r.status === "nieuw");
+  const open = rows.filter((r) => r.status === "nieuw" && !stillReading(r));
 
   return (
     <div className="space-y-5">
@@ -52,11 +64,20 @@ export default async function BonnenPage() {
                   <span className="block font-medium">
                     {r.store_id ? names[r.store_id] : "Winkel onbekend"} · {r.purchased_on ? fmt(r.purchased_on) : "datum onbekend"}
                   </span>
-                  <span className="block text-sm text-muted">{r.lines[0]?.count ?? 0} regels</span>
+                  <span className="block text-sm text-muted">
+                    {stillReading(r) ? (
+                      <span className="inline-flex items-center gap-1.5 font-medium text-accent">
+                        <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-accent/25 border-t-accent" aria-hidden />
+                        Wordt uitgelezen…
+                      </span>
+                    ) : (
+                      `${r.lines[0]?.count ?? 0} regels`
+                    )}
+                  </span>
                 </span>
                 <span className="text-right">
                   <span className="block font-semibold tabular-nums">{r.total != null ? euro(Number(r.total)) : "—"}</span>
-                  {r.status === "nieuw" && <span className="block text-xs font-semibold text-deal">Controleren</span>}
+                  {r.status === "nieuw" && !stillReading(r) && <span className="block text-xs font-semibold text-deal">Controleren</span>}
                 </span>
               </Link>
             </li>
