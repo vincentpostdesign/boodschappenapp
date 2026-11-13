@@ -7,6 +7,8 @@ import { IconCheck, IconPlus, IconTag, IconTrash } from "./icons";
 import { Stepper } from "./Stepper";
 import { SwipeToDelete } from "./SwipeToDelete";
 import type { PersonId } from "@/lib/types";
+import { CATEGORIES } from "@/lib/categories";
+import { setItemCategory } from "@/app/actions";
 
 export type ViewItem = {
   id: string;
@@ -18,6 +20,8 @@ export type ViewItem = {
   checked: boolean;
   cheaper: { storeName: string; difference: number } | null;
   waiting?: boolean; // offline toegevoegd, nog niet bij de server
+  category?: string | null; // soort product (bepaalt de afdeling als er geen vaste koppeling is)
+  movable?: boolean; // afdeling volgt uit de soort, dus met de hand te verplaatsen
 };
 
 type Group = { key: string; name: string; items: ViewItem[] };
@@ -206,6 +210,22 @@ function Row({
       </SwipeToDelete>
       {expanded && (
         <div className="flex items-center justify-end gap-2 border-t border-line bg-surface-2/60 px-3 py-2">
+          {item.movable && !item.waiting && (
+            <label className="mr-auto flex min-w-0 items-center gap-2 text-sm text-muted">
+              <span className="shrink-0">Afdeling</span>
+              <select
+                defaultValue={item.category ?? "overig"}
+                onChange={(e) => start(() => setItemCategory(item.id, e.target.value))}
+                className="h-11 min-w-0 rounded-xl border border-line bg-surface px-2 text-[15px] text-ink"
+              >
+                {CATEGORIES.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+          )}
           <button
             onClick={onRemove}
             className="flex h-11 items-center gap-2 rounded-xl px-3 text-sm font-medium text-danger"

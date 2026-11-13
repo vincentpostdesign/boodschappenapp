@@ -12,6 +12,8 @@ import { parseQuantity } from "@/lib/quantity";
 import { getProducts } from "@/lib/data";
 import { ACCESS_COOKIE, verifyAccessToken } from "@/lib/access";
 import type { Product } from "@/lib/types";
+import { isCategory } from "@/lib/categories";
+import { remember } from "@/lib/categorize";
 
 function refresh() {
   revalidatePath("/", "layout");
@@ -161,5 +163,16 @@ export async function setQuantity(itemId: string, quantity: number) {
 export async function removeItem(itemId: string) {
   await requirePerson();
   check(await db().from("list_items").delete().eq("id", itemId).eq("archived", false), "verwijderen");
+  refresh();
+}
+
+/** Losse regel met de hand naar een andere afdeling; de app onthoudt dat voor deze naam. */
+export async function setItemCategory(itemId: string, category: string) {
+  await requirePerson();
+  if (!isCategory(category)) throw new Error("Onbekende afdeling");
+  const row = check(await db().from("list_items").select("name").eq("id", itemId).maybeSingle(), "regel") as { name: string } | null;
+  if (!row) return;
+  check(await db().from("list_items").update({ category }).eq("id", itemId), "afdeling");
+  await remember(row.name, category, "hand");
   refresh();
 }

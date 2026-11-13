@@ -10,6 +10,9 @@ import {
   getShopper,
 } from "@/lib/data";
 import { groupByRoute } from "@/lib/route";
+import { after } from "next/server";
+import { departmentForCategory } from "@/lib/categories";
+import { categorizeUnknown, categoryOf, getCategoryMemory, memoryReady } from "@/lib/categorize";
 import { cheaperElsewhere } from "@/lib/prices/cheaper";
 import { longDate, shortDate, todayNL } from "@/lib/dates";
 import { StorePicker } from "@/components/StorePicker";
@@ -20,14 +23,20 @@ export const dynamic = "force-dynamic";
 export default async function ListPage() {
   const me = await requirePerson();
   const { store, defaultStore, stores } = await getActiveStore();
-  const [departments, mapping, items, prices, shopper, products] = await Promise.all([
+  const [departments, mapping, items, prices, shopper, products, memory] = await Promise.all([
     getDepartments(store.id),
     getProductDepartments(store.id),
     getActiveItems(),
     getKnownPrices(),
     getShopper(),
     getProducts(),
+    getCategoryMemory(),
   ]);
+  // Losse regels die nog niet ingedeeld kunnen worden: Claude doet dat op de achtergrond.
+  if (memoryReady(memory) && items.some((i) => !i.product_id && !categoryOf(i, memory))) after(() => categorizeUnknown().catch(() => 0));
+  // Afdeling: vast product met een gekoppelde afdeling, anders op soort product (los ingetypt of nog niet gekoppeld).
+  const departmentOf = (i: (typeof items)[number]) =>
+    (i.product_id ? mapping.get(i.product_id) : null) ?? departmentForCategory(categoryOf(i, memory), departments);
 
   const storeNames = Object.fromEntries(stores.map((s) => [s.id, s.name]));
   const toView = (i: (typeof items)[number]): ViewItem => ({
@@ -39,11 +48,13 @@ export default async function ListPage() {
     addedOn: shortDate(i.added_at),
     checked: i.checked,
     cheaper: i.product_id ? cheaperElsewhere(i.product_id, defaultStore.id, prices, storeNames) : null,
+    category: categoryOf(i, memory),
+    movable: memoryReady(memory) && !(i.product_id && mapping.get(i.product_id)),
   });
 
   const open = items.filter((i) => !i.checked);
   const done = items.filter((i) => i.checked).sort((a, b) => (b.checked_at ?? "").localeCompare(a.checked_at ?? ""));
-  const groups = groupByRoute(open, departments, (i) => (i.product_id ? mapping.get(i.product_id) : null)).map((g) => ({
+  const groups = groupByRoute(open, departments, departmentOf).map((g) => ({
     key: g.departmentId ?? "overig",
     name: g.name,
     items: g.items.map(toView),

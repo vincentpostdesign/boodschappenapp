@@ -26,6 +26,7 @@ export type ListItem = {
   checked: boolean;
   checked_at: string | null;
   checked_by: PersonId | null;
+  category?: string | null; // soort product voor losse regels (src/lib/categories.ts)
 };
 
 export type CheaperElsewhere = { storeName: string; difference: number };

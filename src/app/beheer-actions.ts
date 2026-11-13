@@ -6,6 +6,7 @@ import { bumpVersion } from "@/lib/version";
 import { TAG_CATALOGUS, TAG_PRIJZEN, getWeekSchedule } from "@/lib/data";
 import { WEEKDAYS, weekdayIndex } from "@/lib/schedule";
 import { TAG_MENSEN } from "@/lib/people";
+import { TAG_SOORTEN } from "@/lib/categorize";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { db, check } from "@/lib/db";
@@ -25,6 +26,7 @@ export async function refreshAllData() {
   await requirePerson();
   refresh();
   revalidateTag(TAG_MENSEN);
+  revalidateTag(TAG_SOORTEN);
 }
 
 // ---------- wie doet de boodschappen ----------
