@@ -63,6 +63,7 @@ export default async function ListPage() {
         done={done.map(toView)}
         suggestions={[...new Set(products.map((p) => p.name))]}
         storeName={store.name}
+        me={me}
       />
     </div>
   );

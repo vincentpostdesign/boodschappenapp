@@ -50,8 +50,11 @@ async function productIdsOnList(): Promise<Set<string>> {
  * Vrij invoerveld. Haalt een aantal uit de tekst ("2x salade", "3 appels") en herkent een vast product
  * als de naam precies overeenkomt. Staat dat product al op de lijst, dan wordt alleen het aantal bijgewerkt.
  */
-export async function addFreeItem(text: string, quantity?: number) {
+export async function addFreeItem(text: string, quantity?: number, clientId?: string) {
   const person = await requirePerson();
+  // Offline toegevoegd en later (mogelijk twee keer) verstuurd: met hetzelfde id komt het er maar één keer op.
+  const id = clientId && /^[0-9a-f-]{36}$/i.test(clientId) ? clientId : undefined;
+  if (id && check(await db().from("list_items").select("id").eq("id", id).maybeSingle(), "lijst")) return;
   const parsed = parseQuantity(text);
   const name = parsed.name;
   quantity ??= parsed.quantity ?? undefined;
@@ -71,6 +74,7 @@ export async function addFreeItem(text: string, quantity?: number) {
   }
   check(
     await db().from("list_items").insert({
+      ...(id ? { id } : {}),
       product_id: match?.id ?? null,
       name: match?.name ?? name.charAt(0).toUpperCase() + name.slice(1),
       description: match?.description ?? null,

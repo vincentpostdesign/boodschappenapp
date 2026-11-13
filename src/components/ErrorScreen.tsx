@@ -7,7 +7,16 @@ import { useEffect } from "react";
 const STALE = /ChunkLoadError|Loading chunk|Failed to fetch dynamically imported module|Failed to find Server Action|older or newer deployment/i;
 
 export function ErrorScreen({ error, reset }: { error: Error & { digest?: string }; reset: () => void }) {
-  const stale = STALE.test(`${error?.name} ${error?.message}`);
+  const offline = typeof navigator !== "undefined" && !navigator.onLine;
+  const stale = !offline && STALE.test(`${error?.name} ${error?.message}`);
+
+  // Zonder verbinding niet herladen (dat geeft een wit scherm); zodra er weer bereik is wel.
+  useEffect(() => {
+    if (!offline) return;
+    const back = () => window.location.reload();
+    window.addEventListener("online", back);
+    return () => window.removeEventListener("online", back);
+  }, [offline]);
 
   useEffect(() => {
     if (!stale) return;
@@ -26,9 +35,15 @@ export function ErrorScreen({ error, reset }: { error: Error & { digest?: string
   return (
     <main className="mx-auto flex min-h-dvh max-w-md flex-col justify-center gap-4 px-6 py-10">
       <p className="text-sm font-medium text-accent">Boodschappen</p>
-      <h1 className="text-2xl font-semibold tracking-tight">{stale ? "Nieuwe versie wordt geladen…" : "Er ging iets mis"}</h1>
+      <h1 className="text-2xl font-semibold tracking-tight">
+        {offline ? "Geen verbinding" : stale ? "Nieuwe versie wordt geladen…" : "Er ging iets mis"}
+      </h1>
       <p className="text-muted">
-        {stale ? "De app is net bijgewerkt. Even geduld." : "Probeer het opnieuw. Blijft dit gebeuren, laad de app dan opnieuw."}
+        {offline
+          ? "Dit onderdeel heeft internet nodig. De boodschappenlijst werkt wel: tik op App herladen. Zodra er weer bereik is, gaat het vanzelf verder."
+          : stale
+            ? "De app is net bijgewerkt. Even geduld."
+            : "Probeer het opnieuw. Blijft dit gebeuren, laad de app dan opnieuw."}
       </p>
       <div className="flex gap-2">
         <button onClick={() => reset()} className="h-12 flex-1 rounded-2xl border border-line bg-surface font-semibold">

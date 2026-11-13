@@ -5,6 +5,7 @@ import { AvatarProvider } from "@/components/Avatars";
 import { BackToTop } from "@/components/BackToTop";
 import { LiveSync } from "@/components/LiveSync";
 import { ViewportFix } from "@/components/ViewportFix";
+import { OfflineStatus } from "@/components/OfflineStatus";
 import { getAvatarUrls } from "@/lib/people";
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
@@ -20,6 +21,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       <BackToTop />
       <LiveSync />
       <ViewportFix />
+      <OfflineStatus />
       <ServiceWorker />
     </AvatarProvider>
   );

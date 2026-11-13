@@ -1,7 +1,7 @@
 "use client";
 
 import { useOptimistic, useRef, useState, useTransition } from "react";
-import { addFreeItem, removeItem, setChecked, setQuantity } from "@/app/actions";
+import { newId, runOrQueue, usePendingOps } from "@/lib/offline-queue";
 import { PersonDot } from "./PersonDot";
 import { IconCheck, IconPlus, IconTag, IconTrash } from "./icons";
 import { Stepper } from "./Stepper";
@@ -17,6 +17,7 @@ export type ViewItem = {
   addedOn: string;
   checked: boolean;
   cheaper: { storeName: string; difference: number } | null;
+  waiting?: boolean; // offline toegevoegd, nog niet bij de server
 };
 
 type Group = { key: string; name: string; items: ViewItem[] };
@@ -28,13 +29,27 @@ export function ListView({
   done,
   suggestions,
   storeName,
+  me,
 }: {
   groups: Group[];
   done: ViewItem[];
   suggestions: string[];
   storeName: string;
+  me: PersonId;
 }) {
   const [, start] = useTransition();
+  // Wijzigingen die (door slechte verbinding) nog in de telefoon wachten, tonen we alsof ze gelukt zijn.
+  const pending = usePendingOps();
+  const pendingCheck = new Map(pending.flatMap((o) => (o.k === "check" ? [[o.id, o.v] as const] : [])));
+  const pendingQty = new Map(pending.flatMap((o) => (o.k === "qty" ? [[o.id, o.v] as const] : [])));
+  const pendingRemoved = new Set(pending.flatMap((o) => (o.k === "remove" ? [o.id] : [])));
+  const known = new Set([...groups.flatMap((g) => g.items), ...done].map((i) => i.id));
+  const pendingAdds: ViewItem[] = pending.flatMap((o) =>
+    o.k === "add" && !known.has(o.id)
+      ? [{ id: o.id, name: o.text.charAt(0).toUpperCase() + o.text.slice(1), description: null, quantity: 1, addedBy: me, addedOn: "net", checked: false, cheaper: null, waiting: true }]
+      : [],
+  );
+  if (pendingAdds.length) groups = [...groups, { key: "wachtend", name: "Net toegevoegd", items: pendingAdds }];
   // Optimistisch afvinken: direct zichtbaar, server volgt.
   const [toggled, toggle] = useOptimistic(new Map<string, boolean>(), (m, [id, v]: [string, boolean]) => new Map(m).set(id, v));
   const [openItem, setOpenItem] = useState<string | null>(null);
@@ -46,7 +61,7 @@ export function ListView({
     start(async () => {
       markRemoved(item.id);
       setSwipeOpen(null);
-      await removeItem(item.id);
+      await runOrQueue({ k: "remove", id: item.id });
     });
   const swipeProps = (item: ViewItem) => ({
     swipeOpen: swipeOpen === item.id,
@@ -54,11 +69,12 @@ export function ListView({
     onRemove: () => onRemove(item),
   });
 
-  const visible = (items: ViewItem[]) => items.filter((i) => !removed.has(i.id));
+  const visible = (items: ViewItem[]) =>
+    items.filter((i) => !removed.has(i.id) && !pendingRemoved.has(i.id)).map((i) => (pendingQty.has(i.id) ? { ...i, quantity: pendingQty.get(i.id)! } : i));
   groups = groups.map((g) => ({ ...g, items: visible(g.items) }));
   done = visible(done);
   const all = [...groups.flatMap((g) => g.items), ...done];
-  const isChecked = (i: ViewItem) => toggled.get(i.id) ?? i.checked;
+  const isChecked = (i: ViewItem) => toggled.get(i.id) ?? pendingCheck.get(i.id) ?? i.checked;
   const openGroups = groups
     .map((g) => ({ ...g, items: g.items.filter((i) => !isChecked(i)) }))
     .filter((g) => g.items.length);
@@ -69,7 +85,7 @@ export function ListView({
     start(async () => {
       const next = !isChecked(item);
       toggle([item.id, next]);
-      await setChecked(item.id, next);
+      await runOrQueue({ k: "check", id: item.id, v: next });
     });
 
   return (
@@ -147,7 +163,7 @@ function Row({
   const changeQty = (n: number) =>
     start(async () => {
       setQty(n);
-      await setQuantity(item.id, n);
+      await runOrQueue({ k: "qty", id: item.id, v: n });
     });
   return (
     <li>
@@ -175,7 +191,7 @@ function Row({
           <span className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1">
             <span className="inline-flex items-center gap-1.5 text-[11px] text-muted">
               <PersonDot person={item.addedBy} />
-              {item.addedOn}
+              {item.waiting ? "wordt verstuurd zodra er verbinding is" : item.addedOn}
             </span>
             {item.cheaper && !checked && (
               <span className="inline-flex items-center gap-1 rounded-md bg-deal-soft px-1.5 py-0.5 text-xs font-semibold text-deal">
@@ -204,17 +220,15 @@ function Row({
 
 function AddBar({ suggestions }: { suggestions: string[] }) {
   const [text, setText] = useState("");
-  const [pending, start] = useTransition();
+  const pending = false; // toevoegen wacht nooit: het gaat direct of via de wachtrij
   const input = useRef<HTMLInputElement>(null);
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
     const value = text.trim();
     if (!value) return;
     setText("");
-    start(async () => {
-      await addFreeItem(value);
-      input.current?.focus();
-    });
+    input.current?.focus();
+    void runOrQueue({ k: "add", id: newId(), text: value });
   };
   return (
     <form onSubmit={submit} className="flex gap-2">
