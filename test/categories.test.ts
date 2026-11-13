@@ -46,6 +46,26 @@ describe("departmentForCategory", () => {
     expect(name(jumbo, departmentForCategory("ontbijt", jumbo))).toBe("Ontbijt");
     expect(name(aldi, departmentForCategory("ontbijt", aldi))).toBe("Brood en zoetwaren");
   });
+  it("volgt de nieuwe Jumbo-indeling", () => {
+    const j2 = ["Groente en fruit", "Salades", "Vis", "Kruiden", "Soepen", "Chips", "Bieren", "Wijnen", "Frisdranken", "Houdbare zuivel", "Koekjes", "Zuivel", "Diepvries", "Brood", "Vleeswaren", "Overig"].map(
+      (n, i) => ({ id: `n${i}`, name: n }),
+    );
+    const dep = (item: string) => name(j2, departmentForCategory(guessCategory(item), j2));
+    expect(dep("Opschuimmelk")).toBe("Houdbare zuivel");
+    expect(dep("Koffiemelk")).toBe("Houdbare zuivel");
+    expect(dep("Halfvolle melk")).toBe("Zuivel");
+    expect(dep("Gorgonzola kaas")).toBe("Zuivel");
+    expect(dep("Rode wijn")).toBe("Wijnen");
+    expect(dep("Hertog Jan pils")).toBe("Bieren");
+    expect(dep("Cola")).toBe("Frisdranken");
+    expect(dep("Tomatensoep")).toBe("Soepen");
+    expect(dep("Kaneel")).toBe("Kruiden");
+    expect(dep("Paprikapoeder")).toBe("Kruiden");
+    expect(dep("Paprika")).toBe("Groente en fruit");
+    expect(dep("Stroopwafels")).toBe("Koekjes");
+    expect(dep("Spaghetti")).toBeNull(); // geen houdbaar-afdeling: komt bij Overig
+    expect(dep("Kipfilet")).toBe("Vleeswaren");
+  });
   it("valt terug op Overig als de winkel zo'n afdeling niet heeft", () => {
     expect(departmentForCategory("huishouden", aldi)).toBeNull();
     expect(departmentForCategory(null, aldi)).toBeNull();
