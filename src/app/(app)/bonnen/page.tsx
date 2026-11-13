@@ -4,6 +4,7 @@ import { requirePerson } from "@/lib/session";
 import { getStores } from "@/lib/data";
 import { euro } from "@/lib/dates";
 import { ReceiptUpload } from "@/components/bonnen/ReceiptUpload";
+import { ReceiptList } from "@/components/bonnen/ReceiptList";
 import { IconChart } from "@/components/icons";
 
 export const dynamic = "force-dynamic";
@@ -33,6 +34,13 @@ export default async function BonnenPage() {
   const names = Object.fromEntries(stores.map((s) => [s.id, s.name]));
   const fmt = (d: string) => new Intl.DateTimeFormat("nl-NL", { weekday: "short", day: "numeric", month: "short", timeZone: "UTC" }).format(new Date(`${d}T12:00:00Z`)).replace(/\./g, "");
   const open = rows.filter((r) => r.status === "nieuw" && !stillReading(r));
+  // Zelfde winkel, datum en totaal: waarschijnlijk twee keer dezelfde bon gefotografeerd.
+  const dupKey = new Map<string, number>();
+  for (const r of rows) {
+    if (!r.store_id || !r.purchased_on || r.total == null) continue;
+    const k = `${r.store_id}|${r.purchased_on}|${Number(r.total)}`;
+    dupKey.set(k, (dupKey.get(k) ?? 0) + 1);
+  }
 
   return (
     <div className="space-y-5">
@@ -56,33 +64,17 @@ export default async function BonnenPage() {
           Nog geen bonnetjes. Met bonnen leert de app de echte productnamen en prijzen, vooral bij de Aldi.
         </p>
       ) : (
-        <ul className="divide-y divide-line overflow-hidden rounded-2xl border border-line bg-surface">
-          {rows.map((r) => (
-            <li key={r.id}>
-              <Link href={`/bonnen/${r.id}`} className="flex min-h-16 items-center gap-3 px-4 py-2">
-                <span className="min-w-0 flex-1">
-                  <span className="block font-medium">
-                    {r.store_id ? names[r.store_id] : "Winkel onbekend"} · {r.purchased_on ? fmt(r.purchased_on) : "datum onbekend"}
-                  </span>
-                  <span className="block text-sm text-muted">
-                    {stillReading(r) ? (
-                      <span className="inline-flex items-center gap-1.5 font-medium text-accent">
-                        <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-accent/25 border-t-accent" aria-hidden />
-                        Wordt uitgelezen…
-                      </span>
-                    ) : (
-                      `${r.lines[0]?.count ?? 0} regels`
-                    )}
-                  </span>
-                </span>
-                <span className="text-right">
-                  <span className="block font-semibold tabular-nums">{r.total != null ? euro(Number(r.total)) : "—"}</span>
-                  {r.status === "nieuw" && !stillReading(r) && <span className="block text-xs font-semibold text-deal">Controleren</span>}
-                </span>
-              </Link>
-            </li>
-          ))}
-        </ul>
+        <ReceiptList
+          rows={rows.map((r) => ({
+            id: r.id,
+            title: `${r.store_id ? names[r.store_id] : "Winkel onbekend"} · ${r.purchased_on ? fmt(r.purchased_on) : "datum onbekend"}`,
+            lines: r.lines[0]?.count ?? 0,
+            total: r.total != null ? euro(Number(r.total)) : "—",
+            check: r.status === "nieuw" && !stillReading(r),
+            reading: stillReading(r),
+            duplicate: !!r.store_id && !!r.purchased_on && r.total != null && (dupKey.get(`${r.store_id}|${r.purchased_on}|${Number(r.total)}`) ?? 0) > 1,
+          }))}
+        />
       )}
     </div>
   );
