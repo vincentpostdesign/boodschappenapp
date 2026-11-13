@@ -5,6 +5,9 @@ import { addAllFixedProducts, setProductQuantity } from "@/app/actions";
 import { normalize } from "@/lib/route";
 import { IconPlus, IconSearch } from "./icons";
 import { Stepper } from "./Stepper";
+import { SwipeToDelete } from "./SwipeToDelete";
+import { ConfirmWipe } from "./ConfirmWipe";
+import { removeFixedProduct } from "@/app/beheer-actions";
 
 /** onList = aantal op de lijst (0 = staat er niet op). */
 type P = { id: string; name: string; description: string | null; quantity: number; onList: number };
@@ -13,6 +16,9 @@ type Group = { key: string; name: string; products: P[] };
 export function FixedProducts({ groups, storeName }: { groups: Group[]; storeName: string }) {
   const [query, setQuery] = useState("");
   const [, start] = useTransition();
+  const [swipeOpen, setSwipeOpen] = useState<string | null>(null);
+  const [confirm, setConfirm] = useState<P | null>(null);
+  const [gone, setGone] = useState<Set<string>>(new Set());
   // Optimistisch: aantallen direct tonen, de server volgt.
   const [counts, setCount] = useOptimistic(new Map<string, number>(), (m, [id, n]: [string, number]) => new Map(m).set(id, n));
 
@@ -61,9 +67,23 @@ export function FixedProducts({ groups, storeName }: { groups: Group[]; storeNam
           {remaining.length === 0 ? "Alle vaste producten staan op de lijst" : `Zet alle vaste producten erop (${remaining.length})`}
         </button>
         <p className="px-1 text-xs text-muted">
-          Ingedeeld volgens de looproute van de {storeName}. Met + zet je iets op de lijst; tik nog eens voor meer.
+          Ingedeeld volgens de looproute van de {storeName}. Met + zet je iets op de lijst; tik nog eens voor meer. Veeg naar links om een vast product te verwijderen.
         </p>
       </header>
+      {confirm && (
+        <ConfirmWipe
+          title="Vast product verwijderen?"
+          onCancel={() => setConfirm(null)}
+          onConfirm={async () => {
+            const p = confirm;
+            setGone((s) => new Set(s).add(p.id));
+            setConfirm(null);
+            await removeFixedProduct(p.id, "WISSEN");
+          }}
+        >
+          <strong className="text-ink">{[confirm.name, confirm.description].filter(Boolean).join(" – ")}</strong> verdwijnt uit de vaste producten. Staat het nu op de lijst, dan blijft het daar gewoon staan; bonnen en historie blijven bewaard.
+        </ConfirmWipe>
+      )}
 
       {filtered.length === 0 && <p className="py-8 text-center text-muted">Niets gevonden voor “{query}”.</p>}
 
@@ -74,8 +94,19 @@ export function FixedProducts({ groups, storeName }: { groups: Group[]; storeNam
             <ul className="divide-y divide-line overflow-hidden rounded-2xl border border-line bg-surface">
               {g.products.map((p) => {
                 const n = countOf(p);
+                if (gone.has(p.id)) return null;
                 return (
-                  <li key={p.id} className={`flex min-h-16 items-center gap-3 px-4 py-2 ${n ? "bg-accent-soft/50" : ""}`}>
+                  <li key={p.id}>
+                    <SwipeToDelete
+                      open={swipeOpen === p.id}
+                      onOpenChange={(o) => setSwipeOpen(o ? p.id : null)}
+                      onDelete={() => {
+                        setSwipeOpen(null);
+                        setConfirm(p);
+                      }}
+                      label={p.name}
+                    >
+                  <div className={`flex min-h-16 items-center gap-3 px-4 py-2 ${n ? "bg-[color-mix(in_srgb,var(--accent-soft)_50%,var(--surface))]" : "bg-surface"}`}>
                     <span className="min-w-0 flex-1">
                       <span className="block text-[17px] font-medium leading-tight">{p.name}</span>
                       <span className="block truncate text-sm text-muted">
@@ -95,6 +126,8 @@ export function FixedProducts({ groups, storeName }: { groups: Group[]; storeNam
                         <IconPlus className="h-5 w-5" />
                       </button>
                     )}
+                  </div>
+                    </SwipeToDelete>
                   </li>
                 );
               })}

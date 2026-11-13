@@ -157,6 +157,14 @@ export async function deleteProduct(id: string) {
   redirect("/beheer/producten");
 }
 
+/** Vast product verwijderen vanaf het scherm Vast (veegbeweging + WISSEN); blijft op dat scherm. */
+export async function removeFixedProduct(id: string, confirmation: string) {
+  await requirePerson();
+  if (confirmation !== "WISSEN") throw new Error("Typ WISSEN om het product te verwijderen");
+  check(await db().from("products").delete().eq("id", id), "verwijderen");
+  refresh();
+}
+
 // ---------- afdelingen / looproute ----------
 
 async function storeDepartments(storeId: string) {
