@@ -5,12 +5,12 @@
 //   Zo blijft het scherm nooit wit hangen bij één streepje bereik.
 // - Bij elke bewaarde pagina worden ook alle bestanden bewaard die die pagina nodig heeft.
 // - Wijzigingen (afvinken e.d.) wachten in de app zelf tot er weer verbinding is (offline-queue).
-const VERSION = "v5";
+const VERSION = "v6";
 const PAGES = `pagina-${VERSION}`;
 const STATIC = `bestanden-${VERSION}`;
 const PAGE_TIMEOUT = 3000;
 const DATA_TIMEOUT = 4000;
-const PRECACHE_PAGES = ["/", "/vast", "/watchlist", "/bonnen", "/beheer"];
+const PRECACHE_PAGES = ["/", "/kaarten", "/vast", "/watchlist", "/bonnen", "/beheer"];
 const PRECACHE_FILES = ["/manifest.webmanifest", "/icon-192.png", "/apple-touch-icon.png", "/favicon.svg"];
 
 const OFFLINE_HTML = `<!doctype html><html lang="nl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">

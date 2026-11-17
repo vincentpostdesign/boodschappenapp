@@ -20,6 +20,7 @@ import { categorizeUnknown, categoryOf, getCategoryMemory, memoryReady } from "@
 import { cheaperElsewhere } from "@/lib/prices/cheaper";
 import { longDate, shortDate, todayNL } from "@/lib/dates";
 import { StorePicker } from "@/components/StorePicker";
+import { IconCard } from "@/components/icons";
 import { ListView, type ViewItem } from "@/components/ListView";
 
 export const dynamic = "force-dynamic";
@@ -92,8 +93,20 @@ export default async function ListPage() {
   return (
     <div className="space-y-5">
       <header className="space-y-3">
-        <p className="text-sm font-medium text-muted first-letter:uppercase">{longDate(today)}</p>
-        <ShopperBanner me={me} shopper={shopper} />
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0 space-y-1.5">
+            <p className="text-sm font-medium text-muted first-letter:uppercase">{longDate(today)}</p>
+            <ShopperBanner me={me} shopper={shopper} />
+          </div>
+          {/* Klantenkaarten (Jumbo, AH, …): één tik, ook zonder internet in de winkel */}
+          <Link
+            href="/kaarten"
+            aria-label="Klantenkaarten"
+            className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-line bg-surface text-accent"
+          >
+            <IconCard className="h-6 w-6" />
+          </Link>
+        </div>
         <StorePicker stores={stores.map((s) => ({ id: s.id, name: s.name }))} activeId={store.id} />
       </header>
 
@@ -119,8 +132,8 @@ export default async function ListPage() {
 function ShopperBanner({ me, shopper }: { me: string; shopper: string | null }) {
   if (!shopper) {
     return (
-      <Link href="/beheer#wie" className="block rounded-2xl border border-dashed border-line px-4 py-3 text-muted">
-        Nog niemand aangewezen voor vandaag. <span className="font-medium text-accent">Aanwijzen</span>
+      <Link href="/beheer#wie" className="inline-flex rounded-full border border-dashed border-line px-3 py-1 text-sm text-muted">
+        Niemand aangewezen · <span className="ml-1 font-medium text-accent">Aanwijzen</span>
       </Link>
     );
   }
@@ -128,11 +141,11 @@ function ShopperBanner({ me, shopper }: { me: string; shopper: string | null }) 
   const name = PEOPLE[shopper as keyof typeof PEOPLE]?.name ?? shopper;
   return (
     <div
-      className={`flex items-center gap-3 rounded-2xl px-4 py-3 text-[15px] font-semibold ${
+      className={`inline-flex max-w-full items-center gap-2 rounded-full px-3 py-1 text-sm font-semibold ${
         mine ? "bg-accent text-accent-ink" : "bg-accent-soft text-ink"
       }`}
     >
-      <span className={`h-2.5 w-2.5 rounded-full ${shopper === "vincent" ? "bg-vincent" : "bg-marleen"} ring-2 ring-white/70`} />
+      <span className={`h-2 w-2 shrink-0 rounded-full ${shopper === "vincent" ? "bg-vincent" : "bg-marleen"} ring-2 ring-white/70`} />
       {mine ? "Jij doet vandaag de boodschappen" : `${name} doet vandaag de boodschappen`}
     </div>
   );

@@ -29,7 +29,10 @@ export function LiveSync() {
     let saveTimer: ReturnType<typeof setTimeout> | undefined;
     const saveSoon = () => {
       clearTimeout(saveTimer);
-      saveTimer = setTimeout(() => keepOffline("/"), 1500);
+      saveTimer = setTimeout(() => {
+        keepOffline("/");
+        keepOffline("/kaarten"); // klantenkaarten moeten in de winkel zonder internet werken
+      }, 1500);
     };
 
     const check = async () => {

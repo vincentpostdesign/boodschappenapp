@@ -53,3 +53,6 @@ export const IconChart = ({ className }: P) => (
 export const IconGift = ({ className }: P) => (
   <svg viewBox="0 0 24 24" className={className} {...base}><path d="M4 11h16v9H4zM3 7.5h18V11H3zM12 7.5V20" /><path d="M12 7.5C10.5 4 7 4 7 6s3 1.5 5 1.5ZM12 7.5c1.5-3.5 5-3.5 5-1.5s-3 1.5-5 1.5Z" /></svg>
 );
+export const IconCard = ({ className }: P) => (
+  <svg viewBox="0 0 24 24" className={className} {...base}><rect x="3" y="5.5" width="18" height="13" rx="2.5" /><path d="M6.5 9.5v5M8.5 9.5v5M10.5 9.5v5M13 9.5v5M15 9.5v5M17.5 9.5v5" /></svg>
+);
