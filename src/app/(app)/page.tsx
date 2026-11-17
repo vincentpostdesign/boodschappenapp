@@ -93,8 +93,8 @@ export default async function ListPage() {
   return (
     <div className="space-y-5">
       <header className="space-y-3">
-        <div className="flex items-start justify-between gap-3">
-          <div className="min-w-0 space-y-1.5">
+        <div className="flex items-center justify-between gap-3">
+          <div className="min-w-0 space-y-1">
             <p className="text-sm font-medium text-muted first-letter:uppercase">{longDate(today)}</p>
             <ShopperBanner me={me} shopper={shopper} />
           </div>
@@ -102,7 +102,7 @@ export default async function ListPage() {
           <Link
             href="/kaarten"
             aria-label="Klantenkaarten"
-            className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-line bg-surface text-accent"
+            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-line bg-surface text-accent"
           >
             <IconCard className="h-6 w-6" />
           </Link>
