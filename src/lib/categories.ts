@@ -50,12 +50,12 @@ export function departmentForCategory(category: string | null | undefined, depar
 // Woordenlijst voor directe indeling. Volgorde telt: specifiek vóór algemeen
 // ("kipfilet" is vlees, "kipsalade" salade, "pindakaas" ontbijt en geen kaas).
 const RULES: [CategoryId, RegExp][] = [
-  ["salades", /salade|rauwkost|coleslaw|huzarensalade/],
-  ["diepvries", /diepvries|ijsjes?\b|^ijs\b|ijsbeker|magnum|pizza|friet|patat|kroket|bitterbal|frikandel|spinazie a la creme/],
+  ["salades", /salade|rauwkost|coleslaw|huzarensalade|caesar|slaschotel|slasch\b/],
+  ["diepvries", /diepvries|vriezer|ijsjes?\b|^ijs\b|ijsbeker|magnum|pizza|friet|patat|kroket|bitterbal|frikandel|spinazie a la creme/],
   ["ontbijt", /pindakaas|hagelslag|jam\b|confituur|honing|muesli|cruesli|granola|cornflakes|havermout|ontbijt|nutella|chocopasta|vlokken|beschuit|crackers?|knackebrod|rijstwafel|appelstroop|speculoospasta/],
   ["vis", /\bvis\b|zalm|tonijn|haring|makreel|kabeljauw|garnalen|mosselen|pangasius|scholfilet|vissticks|lekkerbek|kibbeling/],
-  ["vleeswaren", /vleeswaren|ham\b|achterham|salami|rookvlees|kipfilet beleg|boterhamworst|cervelaat|leverworst|filet american|ontbijtspek|plakjes|pate\b/],
-  ["vlees", /gehakt|kipfilet|kippenpoot|kipdij|kip\b|biefstuk|varkens|rund|schnitzel|slavink|hamburger|braadworst|rookworst|worst|spek|shoarma|kalkoen|lam\b|ribs|saucijs|vlees/],
+  ["vleeswaren", /vleeswaren|ham\b|achterham|salami|rookvlees|kipfilet beleg|boterhamworst|cervelaat|leverworst|filet american|ontbijtspek|plakjes?\b|pate\b/],
+  ["vlees", /gehakt|kipfilet|kippenpoot|kipdij|kip\b|biefstuk|varkens|rund|schnitzel|slavink|hamburger|braadworst|rookworst|worst|spek|shoarma|kalkoen|boomstam|rollade|lam\b|ribs|saucijs|vlees/],
   ["kaas", /kaas|gouda|brie|mozzarella|parmezaan|feta|geitenkaas|cheddar|roomkaas/],
   ["houdbare-zuivel", /opschuim|koffiemelk|koffiecreamer|houdbare (melk|room|zuivel)|lang houdbaar|condens|spuitbus|slagroom in spuit|halvamel|kokosroom/],
   ["zuivel", /melk|karnemelk|yoghurt|kwark|vla\b|room|slagroom|creme fraiche|boter\b|roomboter|margarine|halvarine|eieren|\bei\b|skyr|toetje|pudding|chocomel|fristi|zuivel|becel|blue band/],

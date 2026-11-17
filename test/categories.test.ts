@@ -71,3 +71,21 @@ describe("departmentForCategory", () => {
     expect(departmentForCategory(null, aldi)).toBeNull();
   });
 });
+
+describe("Aldi-indeling (17 nov)", () => {
+  const aldi = ["Groente en fruit", "Salades", "Vis", "Brood en zoetwaren", "Koffie", "Thee", "Bier, wijn, noten en chips", "Frisdrank",
+    "Vlees (bakvlees)", "Vleeswaren", "Kaas", "Zuivel", "Diepvries", "Overig"].map((name) => ({ id: name, name }));
+  const dep = (product: string) => departmentForCategory(guessCategory(product), aldi);
+  it("zet producten van de bon bij de juiste Aldi-afdeling", () => {
+    expect(dep("Boomstam 4st 400g")).toBe("Vlees (bakvlees)");
+    expect(dep("Slasch. caesar +sup 0,")).toBe("Salades");
+    expect(dep("Gouda 48+ jong bel stuk")).toBe("Kaas");
+    expect(dep("Magere kwark")).toBe("Zuivel");
+    expect(dep("Opschuimmelk 1L")).toBe("Zuivel");
+    expect(dep("Runderrookvlees")).toBe("Vleeswaren");
+    expect(dep("Grillworst kaas plakje")).toBe("Vleeswaren");
+    expect(dep("Cola regular 2L PET")).toBe("Frisdrank");
+    expect(dep("Chips paprika")).toBe("Bier, wijn, noten en chips");
+    expect(dep("Roomboter croissants vriezer")).toBe("Diepvries");
+  });
+});
