@@ -43,12 +43,29 @@ export async function saveCard(_prev: CardState, formData: FormData): Promise<Ca
   } catch {
     return { error: format === "ean13" ? "Dit nummer is geen geldige EAN-code. Kies Code 128 of controleer het nummer." : "Dit nummer kan niet als barcode worden getekend." };
   }
-  const cards = (await getCards()).filter((c) => c.id !== id);
-  await store([...cards, { id, store: storeId, owner: owner as LoyaltyCard["owner"], number, format }]);
+  // Bestaande pas op zijn plek laten staan; een nieuwe pas komt achteraan
+  const cards = await getCards();
+  const updated: LoyaltyCard = { id, store: storeId, owner: owner as LoyaltyCard["owner"], number, format };
+  const at = cards.findIndex((c) => c.id === id);
+  if (at >= 0) cards[at] = updated;
+  else cards.push(updated);
+  await store(cards);
   return { ok: Date.now() };
 }
 
-export async function deleteCard(id: string) {
+export async function deleteCard(id: string, confirmation: string) {
   await requirePerson();
+  if (confirmation !== "WISSEN") throw new Error("Typ WISSEN om de pas te verwijderen");
   await store((await getCards()).filter((c) => c.id !== id));
+}
+
+/** Volgorde aanpassen: pas één plek omhoog (-1) of omlaag (+1). */
+export async function moveCard(id: string, dir: -1 | 1) {
+  await requirePerson();
+  const cards = await getCards();
+  const i = cards.findIndex((c) => c.id === id);
+  const j = i + dir;
+  if (i < 0 || j < 0 || j >= cards.length) return;
+  [cards[i], cards[j]] = [cards[j], cards[i]];
+  await store(cards);
 }

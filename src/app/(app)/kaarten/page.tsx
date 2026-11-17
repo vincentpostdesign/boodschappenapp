@@ -1,5 +1,5 @@
 import { requirePerson } from "@/lib/session";
-import { getActiveStore, getStores } from "@/lib/data";
+import { getStores } from "@/lib/data";
 import { getCards } from "@/lib/cards";
 import { BackLink } from "@/components/BackLink";
 import { LoyaltyCards, type CardView } from "@/components/LoyaltyCards";
@@ -9,12 +9,10 @@ export const metadata = { title: "Klantenkaarten · Boodschappen" };
 
 export default async function KaartenPage() {
   await requirePerson();
-  const [cards, stores, active] = await Promise.all([getCards(), getStores(), getActiveStore()]);
+  const [cards, stores] = await Promise.all([getCards(), getStores()]);
   const names = Object.fromEntries(stores.map((s) => [s.id, s.name]));
-  // Pas van de gekozen winkel bovenaan
-  const view: CardView[] = cards
-    .map((c) => ({ ...c, storeName: names[c.store] ?? c.store.replace(/^anders:/, "") }))
-    .sort((a, b) => Number(b.store === active.store.id) - Number(a.store === active.store.id) || a.storeName.localeCompare(b.storeName, "nl"));
+  // In de volgorde die jullie zelf kiezen (omhoog/omlaag op de pas)
+  const view: CardView[] = cards.map((c) => ({ ...c, storeName: names[c.store] ?? c.store.replace(/^anders:/, "") }));
 
   return (
     <div className="space-y-4">

@@ -1,8 +1,9 @@
 "use client";
 
 import { useActionState, useEffect, useRef, useState, useTransition } from "react";
-import { deleteCard, saveCard, type CardState } from "@/app/kaart-actions";
+import { deleteCard, moveCard, saveCard, type CardState } from "@/app/kaart-actions";
 import { Barcode } from "./Barcode";
+import { ConfirmWipe } from "./ConfirmWipe";
 import { IconCamera, IconPlus } from "./icons";
 import type { BarcodeFormat } from "@/lib/barcode";
 
@@ -45,7 +46,17 @@ export function LoyaltyCards({
 
   const [shown, setShown] = useState<CardView | null>(() => fromServer.find((c) => c.id === openId) ?? null);
   const [editing, setEditing] = useState<CardView | "nieuw" | null>(fromServer.length ? null : "nieuw");
+  const [wiping, setWiping] = useState<CardView | null>(null);
   const [, start] = useTransition();
+  // Volgorde direct aanpassen; de server volgt
+  const move = (i: number, dir: -1 | 1) => {
+    const j = i + dir;
+    if (j < 0 || j >= cards.length) return;
+    const next = [...cards];
+    [next[i], next[j]] = [next[j], next[i]];
+    setCards(next);
+    start(() => moveCard(cards[i].id, dir));
+  };
 
   return (
     <div className="space-y-4">
@@ -53,12 +64,15 @@ export function LoyaltyCards({
         <p className="rounded-2xl border border-dashed border-line px-4 py-6 text-center text-muted">Nog geen klantenkaarten.</p>
       )}
       <ul className="space-y-3">
-        {cards.map((c) => (
+        {cards.map((c, i) => (
           <li key={c.id} className="overflow-hidden rounded-2xl border border-line bg-surface">
             <button type="button" onClick={() => setShown(c)} className="block w-full p-4 text-left" aria-label={`${c.storeName}-pas tonen`}>
-              <span className="flex items-baseline justify-between gap-2">
-                <span className="text-lg font-semibold">{c.storeName}</span>
-                <span className="text-sm text-muted">{OWNER[c.owner]}</span>
+              <span className="flex items-center justify-between gap-3">
+                <span className="flex min-w-0 items-center gap-3">
+                  <StoreLogo name={c.storeName} />
+                  <span className="truncate text-lg font-semibold">{c.storeName}</span>
+                </span>
+                <span className="shrink-0 text-sm text-muted">{OWNER[c.owner]}</span>
               </span>
               <span className="mt-3 block rounded-xl bg-white p-3">
                 <Barcode value={c.number} format={c.format} className={c.format === "qr" ? "mx-auto h-28 w-28" : "h-20 w-full"} />
@@ -67,14 +81,30 @@ export function LoyaltyCards({
               <span className="mt-2 block text-center text-sm font-medium text-accent">Tik om groot te tonen bij de kassa</span>
             </button>
             <div className="flex border-t border-line">
-              <button type="button" onClick={() => setEditing(c)} className="h-11 flex-1 text-sm font-medium">
+              <button
+                type="button"
+                onClick={() => move(i, -1)}
+                disabled={i === 0}
+                aria-label={`${c.storeName} omhoog`}
+                className="h-11 w-12 text-lg text-muted disabled:opacity-30"
+              >
+                ↑
+              </button>
+              <button
+                type="button"
+                onClick={() => move(i, 1)}
+                disabled={i === cards.length - 1}
+                aria-label={`${c.storeName} omlaag`}
+                className="h-11 w-12 border-l border-line text-lg text-muted disabled:opacity-30"
+              >
+                ↓
+              </button>
+              <button type="button" onClick={() => setEditing(c)} className="h-11 flex-1 border-l border-line text-sm font-medium">
                 Wijzigen
               </button>
               <button
                 type="button"
-                onClick={() => {
-                  if (confirm(`${c.storeName}-pas van ${OWNER[c.owner]} verwijderen?`)) start(() => deleteCard(c.id));
-                }}
+                onClick={() => setWiping(c)}
                 className="h-11 flex-1 border-l border-line text-sm font-medium text-danger"
               >
                 Verwijderen
@@ -97,7 +127,50 @@ export function LoyaltyCards({
       )}
 
       {shown && <FullCard card={shown} onClose={() => setShown(null)} />}
+      {wiping && (
+        <ConfirmWipe
+          title="Pas verwijderen?"
+          onCancel={() => setWiping(null)}
+          onConfirm={async () => {
+            const c = wiping;
+            setCards((cs) => cs.filter((x) => x.id !== c.id));
+            setWiping(null);
+            await deleteCard(c.id, "WISSEN");
+          }}
+        >
+          De <strong className="text-ink">{wiping.storeName}</strong>-pas van {OWNER[wiping.owner]} wordt uit de app verwijderd. Je pas zelf blijft gewoon geldig.
+        </ConfirmWipe>
+      )}
     </div>
+  );
+}
+
+// Herkenbaar blokje in de huisstijlkleur van de winkel (geen echte logo's: werkt ook zonder internet)
+const BRANDS: Record<string, { bg: string; fg: string; label: string }> = {
+  jumbo: { bg: "#ffd200", fg: "#000", label: "Jumbo" },
+  "albert heijn": { bg: "#00a0e2", fg: "#fff", label: "AH" },
+  ah: { bg: "#00a0e2", fg: "#fff", label: "AH" },
+  lidl: { bg: "#0050aa", fg: "#fff200", label: "Lidl" },
+  aldi: { bg: "#00005f", fg: "#fff", label: "Aldi" },
+  plus: { bg: "#e30613", fg: "#fff", label: "Plus" },
+  hema: { bg: "#e30613", fg: "#fff", label: "HEMA" },
+  ikea: { bg: "#0058a3", fg: "#ffdb00", label: "IKEA" },
+  karwei: { bg: "#000", fg: "#fff", label: "KAR WEI" },
+  gamma: { bg: "#004f9f", fg: "#fff", label: "Gamma" },
+  etos: { bg: "#000", fg: "#fff", label: "Etos" },
+  kruidvat: { bg: "#e2001a", fg: "#fff", label: "Kruidvat" },
+};
+
+function StoreLogo({ name }: { name: string }) {
+  const b = BRANDS[name.toLowerCase()] ?? { bg: "var(--accent-soft)", fg: "var(--accent)", label: name.slice(0, 2).toUpperCase() };
+  return (
+    <span
+      aria-hidden
+      className="flex h-10 w-12 shrink-0 items-center justify-center rounded-lg px-1 text-center text-[11px] font-black leading-[1.05] tracking-tight"
+      style={{ background: b.bg, color: b.fg }}
+    >
+      {b.label}
+    </span>
   );
 }
 
@@ -117,7 +190,10 @@ function FullCard({ card, onClose }: { card: CardView; onClose: () => void }) {
       onClick={onClose}
       className="fixed inset-0 z-[80] flex flex-col items-center justify-center gap-6 bg-white px-5 text-black"
     >
-      <p className="text-2xl font-semibold">{card.storeName}</p>
+      <p className="flex items-center gap-3 text-2xl font-semibold">
+        <StoreLogo name={card.storeName} />
+        {card.storeName}
+      </p>
       <div className="w-full max-w-md">
         <Barcode value={card.number} format={card.format} className={card.format === "qr" ? "mx-auto aspect-square w-[min(80vw,22rem)]" : "h-40 w-full"} />
         <p className="mt-3 text-center font-mono text-lg tracking-[0.2em]">{card.number}</p>
