@@ -20,16 +20,24 @@ async function store(cards: LoyaltyCard[]) {
 export async function saveCard(_prev: CardState, formData: FormData): Promise<CardState> {
   await requirePerson();
   const id = String(formData.get("id") || "") || crypto.randomUUID();
-  const storeId = String(formData.get("store") || "");
+  // Supermarkt uit de lijst, of een andere winkel met eigen naam (Karwei, IKEA, HEMA, …)
+  const choice = String(formData.get("store") || "");
+  const other = String(formData.get("store_name") || "").trim().replace(/\s+/g, " ").slice(0, 40);
   const owner = String(formData.get("owner") || "gezin");
   const number = String(formData.get("number") || "").replace(/\s+/g, "").toUpperCase();
   const forced = String(formData.get("format") || "") as BarcodeFormat | "";
-  if (!storeId) return { error: "Kies de winkel." };
+  if (!choice) return { error: "Kies de winkel." };
+  if (choice === "__anders__" && !other) return { error: "Vul de naam van de winkel in." };
   if (!["vincent", "marleen", "gezin"].includes(owner)) return { error: "Kies van wie de pas is." };
-  if (!/^[0-9A-Z-]{4,40}$/.test(number)) return { error: "Vul het nummer onder de streepjescode in (alleen cijfers en letters)." };
-  const known = check(await db().from("stores").select("id").eq("id", storeId).maybeSingle(), "winkel");
-  if (!known) return { error: "Onbekende winkel." };
-  const format: BarcodeFormat = forced === "code128" || forced === "ean13" ? forced : pickFormat(number);
+  if (!/^[0-9A-Z-]{4,60}$/.test(number)) return { error: "Vul het nummer onder de code in (alleen cijfers en letters)." };
+  let storeId = choice;
+  if (choice !== "__anders__") {
+    const known = check(await db().from("stores").select("id").eq("id", choice).maybeSingle(), "winkel");
+    if (!known) return { error: "Onbekende winkel." };
+  } else {
+    storeId = `anders:${other}`;
+  }
+  const format: BarcodeFormat = forced === "code128" || forced === "ean13" || forced === "qr" ? forced : pickFormat(number);
   try {
     encode(number, format);
   } catch {

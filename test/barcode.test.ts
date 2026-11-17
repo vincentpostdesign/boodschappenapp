@@ -39,3 +39,14 @@ describe("pickFormat", () => {
     expect(pickFormat("1234567890")).toBe("code128");
   });
 });
+
+import { encodeQr } from "../src/lib/barcode";
+
+describe("QR", () => {
+  it("maakt een vierkant raster", () => {
+    const g = encodeQr("77310001913024736");
+    expect(g.length).toBeGreaterThanOrEqual(21);
+    expect(g.every((r) => r.length === g.length)).toBe(true);
+    expect(g[0].slice(0, 7).join("")).toBe("1111111"); // zoekpatroon linksboven
+  });
+});

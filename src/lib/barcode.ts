@@ -75,13 +75,31 @@ export function encodeCode128(text: string): string {
   return [...values, check, 106].map((v) => widthsToModules(C128[v])).join("");
 }
 
-export type BarcodeFormat = "ean13" | "code128";
+export type BarcodeFormat = "ean13" | "code128" | "qr";
 
-/** Kies het formaat: geldige EAN-13/EAN-8 → EAN, anders Code 128. */
+/** Kies het formaat: geldige EAN-13/EAN-8 → EAN, anders Code 128. (QR kies je zelf: Lidl, IKEA, HEMA.) */
 export function pickFormat(number: string): BarcodeFormat {
   return isValidEan(number) ? "ean13" : "code128";
 }
 
+/** Streepjescode als modules (niet voor QR; die tekent encodeQr). */
 export function encode(number: string, format: BarcodeFormat): string {
+  if (format === "qr") return encodeQr(number).map((r) => r.join("")).join("");
   return format === "ean13" ? encodeEan(number) : encodeCode128(number);
+}
+
+/** QR-code als raster van 0/1 (foutcorrectie M). */
+export function encodeQr(text: string): ("0" | "1")[][] {
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const qrcode = require("qrcode-generator") as (t: number, l: string) => {
+    addData: (d: string) => void;
+    make: () => void;
+    getModuleCount: () => number;
+    isDark: (r: number, c: number) => boolean;
+  };
+  const q = qrcode(0, "M");
+  q.addData(text);
+  q.make();
+  const n = q.getModuleCount();
+  return Array.from({ length: n }, (_, r) => Array.from({ length: n }, (_, c) => (q.isDark(r, c) ? "1" : "0")));
 }

@@ -13,7 +13,7 @@ export default async function KaartenPage() {
   const names = Object.fromEntries(stores.map((s) => [s.id, s.name]));
   // Pas van de gekozen winkel bovenaan
   const view: CardView[] = cards
-    .map((c) => ({ ...c, storeName: names[c.store] ?? c.store }))
+    .map((c) => ({ ...c, storeName: names[c.store] ?? c.store.replace(/^anders:/, "") }))
     .sort((a, b) => Number(b.store === active.store.id) - Number(a.store === active.store.id) || a.storeName.localeCompare(b.storeName, "nl"));
 
   return (

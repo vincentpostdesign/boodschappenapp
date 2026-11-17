@@ -61,7 +61,7 @@ export function LoyaltyCards({
                 <span className="text-sm text-muted">{OWNER[c.owner]}</span>
               </span>
               <span className="mt-3 block rounded-xl bg-white p-3">
-                <Barcode value={c.number} format={c.format} className="h-20 w-full" />
+                <Barcode value={c.number} format={c.format} className={c.format === "qr" ? "mx-auto h-28 w-28" : "h-20 w-full"} />
                 <span className="mt-1 block text-center font-mono text-sm tracking-widest text-black">{c.number}</span>
               </span>
               <span className="mt-2 block text-center text-sm font-medium text-accent">Tik om groot te tonen bij de kassa</span>
@@ -119,7 +119,7 @@ function FullCard({ card, onClose }: { card: CardView; onClose: () => void }) {
     >
       <p className="text-2xl font-semibold">{card.storeName}</p>
       <div className="w-full max-w-md">
-        <Barcode value={card.number} format={card.format} className="h-40 w-full" />
+        <Barcode value={card.number} format={card.format} className={card.format === "qr" ? "mx-auto aspect-square w-[min(80vw,22rem)]" : "h-40 w-full"} />
         <p className="mt-3 text-center font-mono text-lg tracking-[0.2em]">{card.number}</p>
       </div>
       <p className="text-sm text-neutral-500">Zet je scherm op de hoogste helderheid · tik om te sluiten</p>
@@ -130,6 +130,8 @@ function FullCard({ card, onClose }: { card: CardView; onClose: () => void }) {
 function CardForm({ card, stores, onDone }: { card: CardView | null; stores: { id: string; name: string }[]; onDone: () => void }) {
   const [state, action, pending] = useActionState<CardState, FormData>(saveCard, undefined);
   const [number, setNumber] = useState(card?.number ?? "");
+  const [storeChoice, setStoreChoice] = useState(card ? (card.store.startsWith("anders:") ? "__anders__" : card.store) : "jumbo");
+  const [format, setFormat] = useState<"" | "qr" | "code128">(card?.format === "qr" ? "qr" : card?.format === "code128" ? "code128" : "");
   const [reading, setReading] = useState(false);
   const [note, setNote] = useState<string | null>(null);
   const camera = useRef<HTMLInputElement>(null);
@@ -166,12 +168,13 @@ function CardForm({ card, stores, onDone }: { card: CardView | null; stores: { i
       <div className="grid grid-cols-2 gap-3 [&>*]:min-w-0">
         <label className="block">
           <span className="mb-1 block px-1 text-xs font-medium text-muted">Winkel</span>
-          <select name="store" defaultValue={card?.store ?? "jumbo"} className={field}>
+          <select name="store" value={storeChoice} onChange={(e) => setStoreChoice(e.target.value)} className={field}>
             {stores.map((s) => (
               <option key={s.id} value={s.id}>
                 {s.name}
               </option>
             ))}
+            <option value="__anders__">Andere winkel…</option>
           </select>
         </label>
         <label className="block">
@@ -183,8 +186,22 @@ function CardForm({ card, stores, onDone }: { card: CardView | null; stores: { i
           </select>
         </label>
       </div>
+      {storeChoice === "__anders__" && (
+        <label className="block">
+          <span className="mb-1 block px-1 text-xs font-medium text-muted">Naam van de winkel</span>
+          <input name="store_name" defaultValue={card?.store.startsWith("anders:") ? card.storeName : ""} placeholder="Bijv. HEMA, IKEA, Karwei" maxLength={40} className={field} />
+        </label>
+      )}
       <label className="block">
-        <span className="mb-1 block px-1 text-xs font-medium text-muted">Nummer onder de streepjescode</span>
+        <span className="mb-1 block px-1 text-xs font-medium text-muted">Soort code op de pas</span>
+        <select name="format" value={format} onChange={(e) => setFormat(e.target.value as typeof format)} className={field}>
+          <option value="">Streepjescode (automatisch)</option>
+          <option value="qr">QR-code (vierkant)</option>
+          <option value="code128">Streepjescode, Code 128</option>
+        </select>
+      </label>
+      <label className="block">
+        <span className="mb-1 block px-1 text-xs font-medium text-muted">Nummer onder de code</span>
         <div className="flex gap-2">
           <input
             name="number"
@@ -211,7 +228,11 @@ function CardForm({ card, stores, onDone }: { card: CardView | null; stores: { i
       {note && <p className="text-sm text-deal">{note}</p>}
       {number.trim().length >= 4 && (
         <div className="rounded-xl bg-white p-3">
-          <Barcode value={number.replace(/\s+/g, "").toUpperCase()} format={/^\d{13}$|^\d{8}$/.test(number.trim()) ? "ean13" : "code128"} className="h-16 w-full" />
+          <Barcode
+            value={number.replace(/\s+/g, "").toUpperCase()}
+            format={format || (/^\d{13}$|^\d{8}$/.test(number.replace(/\s+/g, "")) ? "ean13" : "code128")}
+            className={format === "qr" ? "mx-auto h-40 w-40" : "h-16 w-full"}
+          />
           <p className="mt-1 text-center text-xs text-neutral-500">Voorbeeld. Klopt het nummer met je pas?</p>
         </div>
       )}
