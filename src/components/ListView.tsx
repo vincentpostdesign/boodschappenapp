@@ -2,7 +2,6 @@
 
 import { createContext, useContext, useOptimistic, useRef, useState, useTransition } from "react";
 import { newId, runOrQueue, usePendingOps } from "@/lib/offline-queue";
-import { PersonDot } from "./PersonDot";
 import { IconCheck, IconPlus, IconTag } from "./icons";
 import { Stepper } from "./Stepper";
 import { SwipeToDelete } from "./SwipeToDelete";
@@ -246,9 +245,15 @@ function Row({
           </span>
           {item.description && <span className="block truncate text-sm text-muted">{item.description}</span>}
           <span className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1">
-            <span className="inline-flex items-center gap-1.5 text-[11px] text-muted">
-              <PersonDot person={item.addedBy} />
-              {item.waiting ? "wordt verstuurd zodra er verbinding is" : item.addedOn}
+            {/* Wie en wanneer: "MP · 17-11 07:06" */}
+            <span className="inline-flex items-center gap-1.5 text-xs text-muted">
+              <span
+                title={`Toegevoegd door ${item.addedBy === "vincent" ? "Vincent" : "Marleen"}`}
+                className={`rounded px-1 py-px text-[10px] font-bold leading-tight text-white ${item.addedBy === "vincent" ? "bg-vincent" : "bg-marleen"}`}
+              >
+                {item.addedBy === "vincent" ? "VP" : "MP"}
+              </span>
+              <span className="tabular-nums">{item.waiting ? "wordt verstuurd zodra er verbinding is" : item.addedOn}</span>
             </span>
             {item.cheaper && !checked && (
               <span className="inline-flex items-center gap-1 rounded-md bg-deal-soft px-1.5 py-0.5 text-xs font-semibold text-deal">

@@ -18,7 +18,7 @@ import { dealMatches, storeList, validAt, type ScoupyDeal } from "@/lib/scoupy";
 import { departmentForCategory } from "@/lib/categories";
 import { categorizeUnknown, categoryOf, getCategoryMemory, memoryReady } from "@/lib/categorize";
 import { cheaperElsewhere } from "@/lib/prices/cheaper";
-import { longDate, shortDate, todayNL } from "@/lib/dates";
+import { dateTimeShort, longDate, shortDate, todayNL } from "@/lib/dates";
 import { StorePicker } from "@/components/StorePicker";
 import { IconCard } from "@/components/icons";
 import { ListView, type ViewItem } from "@/components/ListView";
@@ -63,7 +63,7 @@ export default async function ListPage() {
     description: i.description,
     quantity: i.quantity,
     addedBy: i.added_by,
-    addedOn: shortDate(i.added_at),
+    addedOn: dateTimeShort(i.added_at),
     checked: i.checked,
     cheaper: i.product_id ? cheaperElsewhere(i.product_id, defaultStore.id, prices, storeNames) : null,
     category: categoryOf(i, memory),

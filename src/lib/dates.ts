@@ -18,6 +18,16 @@ export function longDate(day: string): string {
   );
 }
 
+/** Datum en tijd voor een lijstregel, Nederlandse tijd: '17-11 07:06'. */
+export function dateTimeShort(iso: string): string {
+  const p = Object.fromEntries(
+    new Intl.DateTimeFormat("nl-NL", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit", hour12: false, timeZone: TZ })
+      .formatToParts(new Date(iso))
+      .map((x) => [x.type, x.value]),
+  );
+  return `${p.day}-${p.month} ${p.hour}:${p.minute}`;
+}
+
 /** Korte datum voor een lijstregel: 'vandaag', 'gisteren' of '7 nov'. */
 export function shortDate(iso: string, now: Date = new Date()): string {
   const day = todayNL(new Date(iso));
