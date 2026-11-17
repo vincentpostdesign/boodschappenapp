@@ -116,3 +116,26 @@ export function dedupeReceipts<R extends { store_id: string | null; purchased_on
     return true;
   });
 }
+
+// ---------- bonregels koppelen voor het prijsverloop ----------
+
+/** Geen product maar statiegeld, korting of actie: telt niet mee in het prijsverloop. */
+export function isPriceLine(rawName: string, price: number): boolean {
+  if (!(price > 0)) return false;
+  return !/statiegeld|^actie\b|korting|^\+?pet ?fles|emballage|bonus|zegel|spaar/.test(normalize(rawName));
+}
+
+/**
+ * Bij welk vast product hoort een bonregel? Eerst de koppeling op de bon zelf, dan de alias bij die winkel
+ * ("OPSCHUIMMELK 1L" → Opschuimmelk), dan dezelfde naam als een vast product. Anders null.
+ */
+export function linkLine(
+  line: { raw_name: string; product_id: string | null },
+  storeId: string | null,
+  aliases: Map<string, string>, // "winkel|genormaliseerde alias" → product-id
+  byName: Map<string, string>, // genormaliseerde productnaam → product-id
+): string | null {
+  if (line.product_id) return line.product_id;
+  const n = normalize(line.raw_name);
+  return (storeId ? aliases.get(`${storeId}|${n}`) : undefined) ?? byName.get(n) ?? null;
+}

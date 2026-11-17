@@ -3,6 +3,7 @@ import { requirePerson, PEOPLE } from "@/lib/session";
 import {
   getActiveItems,
   getActiveStore,
+  getBoughtAt,
   getDepartments,
   getKnownPrices,
   getProductDepartments,
@@ -16,6 +17,7 @@ import { after } from "next/server";
 import { getScoupyDeals } from "@/lib/scoupy-store";
 import { dealMatches, storeList, validAt, type ScoupyDeal } from "@/lib/scoupy";
 import { departmentForCategory } from "@/lib/categories";
+import { onlyBoughtElsewhere } from "@/lib/not-here";
 import { categorizeUnknown, categoryOf, getCategoryMemory, memoryReady } from "@/lib/categorize";
 import { cheaperElsewhere } from "@/lib/prices/cheaper";
 import { dateTimeShort, longDate, shortDate, todayNL } from "@/lib/dates";
@@ -28,7 +30,7 @@ export const dynamic = "force-dynamic";
 export default async function ListPage() {
   const me = await requirePerson();
   const { store, defaultStore, stores } = await getActiveStore();
-  const [departments, mapping, items, prices, shopper, products, memory, scoupy, receiptNames, unavailable] = await Promise.all([
+  const [departments, mapping, items, prices, shopper, products, memory, scoupy, receiptNames, unavailable, boughtAt] = await Promise.all([
     getDepartments(store.id),
     getProductDepartments(store.id),
     getActiveItems(),
@@ -39,9 +41,8 @@ export default async function ListPage() {
     getScoupyDeals().catch(() => [] as ScoupyDeal[]),
     getReceiptNames().catch(() => [] as string[]),
     getUnavailable(),
+    getBoughtAt().catch(() => ({}) as Record<string, string[]>),
   ]);
-  // Niet te koop bij de gekozen winkel (bijv. opschuimmelk bij de Aldi): onderaan in een eigen blok.
-  const notHere = (i: { name: string }) => unavailable.has(`${normalize(i.name)}|${store.id}`);
   // Scoupy-actie bij deze regel (bijv. "Optimel" → Optimel drinkyoghurt voor €0,01 bij de Albert Heijn).
   // Een actie die bij de gekozen winkel geldt gaat voor; anders tonen we bij welke winkels hij wél geldt.
   const scoupyFor = (name: string) => {
@@ -55,6 +56,11 @@ export default async function ListPage() {
   // Afdeling: vast product met een gekoppelde afdeling, anders op soort product (los ingetypt of nog niet gekoppeld).
   const departmentOf = (i: (typeof items)[number]) =>
     (i.product_id ? mapping.get(i.product_id) : null) ?? departmentForCategory(categoryOf(i, memory), departments);
+  // Niet te koop bij de gekozen winkel: met de hand aangegeven (opschuimmelk bij de Aldi), of vanzelf als deze winkel
+  // er geen afdeling voor heeft en jullie het volgens de bonnen alleen elders kopen (Prodent bij de Jumbo).
+  const notHere = (i: (typeof items)[number]) =>
+    unavailable.has(`${normalize(i.name)}|${store.id}`) ||
+    (!departmentOf(i) && onlyBoughtElsewhere({ name: i.name, productId: i.product_id }, store.id, boughtAt));
 
   const storeNames = Object.fromEntries(stores.map((s) => [s.id, s.name]));
   const toView = (i: (typeof items)[number]): ViewItem => ({

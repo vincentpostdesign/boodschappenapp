@@ -73,3 +73,34 @@ describe("dedupeReceipts", () => {
     expect(dedupeReceipts([r, { ...r }, { ...r, total: 6.32 }])).toHaveLength(2);
   });
 });
+
+import { isPriceLine, linkLine } from "../src/lib/dashboard";
+
+describe("prijsverloop uit bonregels", () => {
+  it("laat statiegeld, acties en kortingen weg", () => {
+    expect(isPriceLine("+Petfles statiegeld", 0.25)).toBe(false);
+    expect(isPriceLine("Statiegeld", 0.15)).toBe(false);
+    expect(isPriceLine("Actie Knorr", -2.99)).toBe(false);
+    expect(isPriceLine("Magere kwark", 3.18)).toBe(true);
+  });
+  it("koppelt een bonregel aan een vast product via bon, alias of naam", () => {
+    const aliases = new Map([["aldi|opschuimmelk 1l", "p-melk"]]);
+    const byName = new Map([["magere kwark", "p-kwark"]]);
+    expect(linkLine({ raw_name: "x", product_id: "p-x" }, "aldi", aliases, byName)).toBe("p-x");
+    expect(linkLine({ raw_name: "OPSCHUIMMELK 1L", product_id: null }, "aldi", aliases, byName)).toBe("p-melk");
+    expect(linkLine({ raw_name: "Magere Kwark", product_id: null }, "jumbo", aliases, byName)).toBe("p-kwark");
+    expect(linkLine({ raw_name: "Smint", product_id: null }, "aldi", aliases, byName)).toBeNull();
+  });
+});
+
+import { onlyBoughtElsewhere } from "../src/lib/not-here";
+
+describe("automatisch niet bij de Aldi", () => {
+  const bought = { "p:prodent": ["jumbo"], "n:prodent tp coolmint": ["jumbo"], "n:magere kwark": ["aldi", "jumbo"] };
+  it("alleen bij een andere winkel gekocht", () => {
+    expect(onlyBoughtElsewhere({ name: "Prodent tp coolmint", productId: "prodent" }, "aldi", bought)).toBe(true);
+    expect(onlyBoughtElsewhere({ name: "Prodent tp coolmint", productId: "prodent" }, "jumbo", bought)).toBe(false);
+    expect(onlyBoughtElsewhere({ name: "Magere kwark" }, "aldi", bought)).toBe(false);
+    expect(onlyBoughtElsewhere({ name: "Verf en papier" }, "aldi", bought)).toBe(false);
+  });
+});

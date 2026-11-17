@@ -6,6 +6,8 @@ import { addDays, todayNL } from "./dates";
 import { parseSchedule, scheduleFromDays, shopperOn, type WeekSchedule } from "./schedule";
 import type { Department, ListItem, PersonId, Product, Store } from "./types";
 import type { KnownPrice } from "./prices/cheaper";
+import { normalize } from "./route";
+import { isPriceLine, linkLine } from "./dashboard";
 
 // Cache-labels. Gegevens die zelden veranderen worden bewaard en pas opnieuw opgehaald na een wijziging
 // (revalidateTag in de acties) of uiterlijk na een uur.
@@ -170,3 +172,34 @@ export async function getUnavailable(): Promise<Set<string>> {
   if (error) return new Set(); // tabel (nog) niet aanwezig: niets uitzonderen
   return new Set((data as { name: string; store_id: string }[]).map((r) => `${r.name}|${r.store_id}`));
 }
+
+/**
+ * Bij welke winkels is iets volgens de bonnen gekocht? Sleutels: "p:<product-id>" (gekoppeld via bon, alias of naam)
+ * en "n:<genormaliseerde bonnaam>". Gebruikt om "Niet bij de Aldi" automatisch te bepalen.
+ */
+export const getBoughtAt = unstable_cache(
+  async (): Promise<Record<string, string[]>> => {
+    const [linesRes, productsRes, aliasesRes] = await Promise.all([
+      db().from("receipt_lines").select("raw_name, price, product_id, receipt:receipts!inner(store_id, reading)").gt("price", 0).limit(5000),
+      db().from("products").select("id, name"),
+      db().from("product_aliases").select("store_id, alias, product_id"),
+    ]);
+    if (linesRes.error) return {};
+    const byName = new Map(((productsRes.data ?? []) as { id: string; name: string }[]).map((p) => [normalize(p.name), p.id]));
+    const aliases = new Map(
+      ((aliasesRes.data ?? []) as { store_id: string; alias: string; product_id: string }[]).map((a) => [`${a.store_id}|${normalize(a.alias)}`, a.product_id]),
+    );
+    const out: Record<string, Set<string>> = {};
+    const add = (k: string, s: string) => (out[k] ??= new Set()).add(s);
+    for (const l of linesRes.data as unknown as { raw_name: string; price: number; product_id: string | null; receipt: { store_id: string | null; reading: boolean } }[]) {
+      const store = l.receipt?.store_id;
+      if (!store || l.receipt.reading || !isPriceLine(l.raw_name, Number(l.price))) continue;
+      add(`n:${normalize(l.raw_name)}`, store);
+      const pid = linkLine(l, store, aliases, byName);
+      if (pid) add(`p:${pid}`, store);
+    }
+    return Object.fromEntries(Object.entries(out).map(([k, v]) => [k, [...v]]));
+  },
+  ["bought-at-v1"],
+  { tags: [TAG_PRIJZEN], revalidate: 600 },
+);
