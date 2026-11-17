@@ -3,6 +3,7 @@
 import { useMemo, useOptimistic, useState, useTransition } from "react";
 import { addAllFixedProducts, setProductQuantity } from "@/app/actions";
 import { normalize } from "@/lib/route";
+import { NOT_HERE } from "@/lib/not-here";
 import { IconPlus, IconSearch } from "./icons";
 import { Stepper } from "./Stepper";
 import { SwipeToDelete } from "./SwipeToDelete";
@@ -222,6 +223,7 @@ function EditFixed({
                 {d.name}
               </option>
             ))}
+            <option value={NOT_HERE}>Niet te koop bij de {storeName}</option>
           </select>
         </label>
       </div>

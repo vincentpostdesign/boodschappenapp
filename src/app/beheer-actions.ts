@@ -14,6 +14,8 @@ import { db, check } from "@/lib/db";
 import { PEOPLE, isPersonId, requirePerson } from "@/lib/session";
 import { openItemCount, productenTekst, sendToPerson } from "@/lib/push";
 import { todayNL } from "@/lib/dates";
+import { normalize } from "@/lib/route";
+import { NOT_HERE } from "@/lib/not-here";
 
 function refresh() {
   revalidateTag(TAG_CATALOGUS);
@@ -245,12 +247,19 @@ export async function updateFixedProduct(
   if (!name) return { error: "Naam is verplicht" };
   const description = input.description.trim().replace(/\s+/g, " ").slice(0, 160) || null;
   const qty = Math.max(1, Math.min(99, Math.round(Number(input.quantity) || 1)));
+  const old = check(await db().from("products").select("name").eq("id", id).maybeSingle(), "product") as { name: string } | null;
   check(await db().from("products").update({ name, description, default_quantity: qty }).eq("id", id), "product opslaan");
   check(
     await db().from("list_items").update({ name, description }).eq("product_id", id).eq("archived", false),
     "lijst bijwerken",
   );
-  if (input.departmentId) {
+  // "Niet te koop bij de Aldi": daar geen afdeling, en op de lijst in het blok "Niet bij de Aldi".
+  const keys = [...new Set([normalize(name), old ? normalize(old.name) : ""].filter(Boolean))].map((k) => k.slice(0, 120));
+  check(await db().from("store_unavailable").delete().in("name", keys).eq("store_id", input.storeId), "niet bij winkel");
+  if (input.departmentId === NOT_HERE) {
+    check(await db().from("store_unavailable").upsert({ name: keys[0], store_id: input.storeId }), "niet bij winkel");
+    check(await db().from("product_store_department").delete().eq("product_id", id).eq("store_id", input.storeId), "afdeling wissen");
+  } else if (input.departmentId) {
     const dep = check(await db().from("departments").select("id").eq("id", input.departmentId).eq("store_id", input.storeId).maybeSingle(), "afdeling");
     if (dep) {
       check(
