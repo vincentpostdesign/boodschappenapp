@@ -20,7 +20,13 @@ export const IconSettings = ({ className }: P) => (
 export const IconPlus = ({ className }: P) => (
   <svg viewBox="0 0 24 24" className={className} {...base}><path d="M12 5v14M5 12h14" /></svg>
 );
-export const IconMinus = ({ className }: P) => (
+export const IconMic = ({ className }: P) => (
+  <svg viewBox="0 0 24 24" className={className} {...base}>
+    <rect x="9" y="3" width="6" height="11" rx="3" />
+    <path d="M5.5 11a6.5 6.5 0 0 0 13 0M12 17.5V21M8.5 21h7" />
+  </svg>
+);
+export const IconMinus =({ className }: P) => (
   <svg viewBox="0 0 24 24" className={className} {...base}><path d="M5 12h14" /></svg>
 );
 export const IconCheck = ({ className }: P) => (

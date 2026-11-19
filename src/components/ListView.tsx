@@ -5,6 +5,7 @@ import { newId, runOrQueue, usePendingOps } from "@/lib/offline-queue";
 import { IconCheck, IconPlus, IconTag } from "./icons";
 import { Stepper } from "./Stepper";
 import { SwipeToDelete } from "./SwipeToDelete";
+import { VoiceAdd } from "./VoiceAdd";
 import type { PersonId } from "@/lib/types";
 import { CATEGORIES } from "@/lib/categories";
 import { archiveCheckedItems, setItemCategory, setUnavailableAtStore } from "@/app/actions";
@@ -430,6 +431,7 @@ function AddBar({ suggestions }: { suggestions: Suggestion[] }) {
           autoComplete="off"
           className="h-14 min-w-0 flex-1 rounded-2xl border border-line bg-surface px-4 text-[17px] outline-none placeholder:text-muted focus:border-accent"
         />
+        <VoiceAdd />
         <button
           disabled={!text.trim()}
           aria-label="Toevoegen"
