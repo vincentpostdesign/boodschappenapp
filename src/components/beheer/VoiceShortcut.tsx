@@ -48,9 +48,14 @@ export function VoiceShortcut({ hasKey, url }: { hasKey: boolean; url: string })
         <div className="space-y-2 rounded-xl bg-accent-soft/60 p-3">
           <p className="text-sm font-medium">Je sleutel (alleen nu te zien, bewaar hem in de opdracht):</p>
           <code className="block break-all rounded-lg bg-surface px-2 py-1.5 text-sm">{key}</code>
-          <button type="button" onClick={() => copy("link", `${url}?sleutel=${key}&tekst=`)} className="h-12 w-full rounded-xl bg-accent px-3 text-[15px] font-semibold text-accent-ink">
-            {copied === "link" ? "Link gekopieerd ✓" : "Kopieer link voor de opdracht"}
-          </button>
+          <div className="grid grid-cols-2 gap-2">
+            <button type="button" onClick={() => copy("adres", url)} className="h-12 rounded-xl bg-accent px-3 text-[15px] font-semibold text-accent-ink">
+              {copied === "adres" ? "Gekopieerd ✓" : "Kopieer adres"}
+            </button>
+            <button type="button" onClick={() => copy("sleutel", `Bearer ${key}`)} className="h-12 rounded-xl bg-accent px-3 text-[15px] font-semibold text-accent-ink">
+              {copied === "sleutel" ? "Gekopieerd ✓" : "Kopieer sleutel"}
+            </button>
+          </div>
         </div>
       ) : (
         <div className="flex flex-wrap gap-2">
@@ -70,7 +75,7 @@ export function VoiceShortcut({ hasKey, url }: { hasKey: boolean; url: string })
         <summary className="cursor-pointer py-1 font-medium text-accent">Zo maak je de opdracht op je iPhone</summary>
         <ol className="mt-2 list-decimal space-y-2 pl-5 text-ink">
           <li>
-            Maak hierboven je sleutel en tik op <strong>Kopieer link voor de opdracht</strong>.
+            Maak hierboven je sleutel en houd dit scherm open.
           </li>
           <li>
             Open de app <strong>Opdrachten</strong> en maak een nieuwe opdracht (de <strong>+</strong> rechtsboven). Vraagt hij om je opdracht te
@@ -81,8 +86,17 @@ export function VoiceShortcut({ hasKey, url }: { hasKey: boolean; url: string })
             <strong> Stop met luisteren</strong> op <strong>Na tik</strong> (anders stopt hij bij de eerste pauze). Taal: <strong>Nederlands</strong>.
           </li>
           <li>
-            Zoek <strong>Haal inhoud op van URL</strong> en tik erop. Tik op het blauwe woord <em>URL</em>, plak de link en zet de cursor helemaal achteraan
-            (na <code>tekst=</code>). Kies dan boven het toetsenbord de variabele <strong>Gedicteerde tekst</strong>. Verder niets instellen.
+            Zoek <strong>Haal inhoud op van URL</strong> en tik erop. Tik op het blauwe woord <em>URL</em> en plak het adres (<em>Kopieer adres</em>). Tik op het
+            pijltje (Toon meer):
+            <ul className="mt-1 list-disc space-y-1 pl-5">
+              <li>Methode: <strong>POST</strong></li>
+              <li>
+                Headers → <strong>Voeg nieuwe header toe</strong>: sleutel <code>Authorization</code>, waarde: plak <em>Kopieer sleutel</em> (begint met <code>Bearer</code>)
+              </li>
+              <li>
+                Hoofdtekst verzoek: <strong>JSON</strong> → <strong>Voeg nieuw veld toe</strong> → Tekst: sleutel <code>tekst</code>, waarde: kies de variabele <strong>Gedicteerde tekst</strong>
+              </li>
+            </ul>
           </li>
           <li>
             Zoek <strong>Toon melding</strong> en tik erop. Tik op de tekst en kies de variabele <strong>Inhoud van URL</strong>.
