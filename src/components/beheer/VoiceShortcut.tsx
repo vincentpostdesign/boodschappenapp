@@ -48,7 +48,7 @@ export function VoiceShortcut({ hasKey, url }: { hasKey: boolean; url: string })
         <div className="space-y-2 rounded-xl bg-accent-soft/60 p-3">
           <p className="text-sm font-medium">Je sleutel (alleen nu te zien, bewaar hem in de opdracht):</p>
           <code className="block break-all rounded-lg bg-surface px-2 py-1.5 text-sm">{key}</code>
-          <button type="button" onClick={() => copy("link", `${url}?sleutel=${key}&tekst=`)} className={`${btn} w-full bg-accent font-semibold text-accent-ink`}>
+          <button type="button" onClick={() => copy("link", `${url}?sleutel=${key}&tekst=`)} className="h-12 w-full rounded-xl bg-accent px-3 text-[15px] font-semibold text-accent-ink">
             {copied === "link" ? "Link gekopieerd ✓" : "Kopieer link voor de opdracht"}
           </button>
         </div>
