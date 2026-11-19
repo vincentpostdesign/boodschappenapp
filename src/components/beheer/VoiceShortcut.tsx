@@ -73,7 +73,8 @@ export function VoiceShortcut({ hasKey, url }: { hasKey: boolean; url: string })
             Maak hierboven je sleutel en tik op <strong>Kopieer link voor de opdracht</strong>.
           </li>
           <li>
-            Open de app <strong>Opdrachten</strong> en maak een nieuwe opdracht (de <strong>+</strong> rechtsboven). Tik bovenaan op de naam en noem hem <strong>Boodschappen</strong>.
+            Open de app <strong>Opdrachten</strong> en maak een nieuwe opdracht (de <strong>+</strong> rechtsboven). Vraagt hij om je opdracht te
+            <em> beschrijven</em>, typ of plak daar niets maar tik rechtsboven op <strong>Wijzig</strong>. Tik bovenaan op de naam en noem hem <strong>Boodschappen</strong>.
           </li>
           <li>
             Zoek onderin bij <em>Zoek naar taken</em> naar <strong>Dicteer tekst</strong> en tik erop. Tik in die taak op het pijltje en zet
