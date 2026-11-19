@@ -48,14 +48,9 @@ export function VoiceShortcut({ hasKey, url }: { hasKey: boolean; url: string })
         <div className="space-y-2 rounded-xl bg-accent-soft/60 p-3">
           <p className="text-sm font-medium">Je sleutel (alleen nu te zien, bewaar hem in de opdracht):</p>
           <code className="block break-all rounded-lg bg-surface px-2 py-1.5 text-sm">{key}</code>
-          <div className="grid grid-cols-2 gap-2">
-            <button type="button" onClick={() => copy("adres", url)} className={btn}>
-              {copied === "adres" ? "Gekopieerd ✓" : "Kopieer adres"}
-            </button>
-            <button type="button" onClick={() => copy("sleutel", `Bearer ${key}`)} className={btn}>
-              {copied === "sleutel" ? "Gekopieerd ✓" : "Kopieer sleutel"}
-            </button>
-          </div>
+          <button type="button" onClick={() => copy("link", `${url}?sleutel=${key}&tekst=`)} className={`${btn} w-full bg-accent font-semibold text-accent-ink`}>
+            {copied === "link" ? "Link gekopieerd ✓" : "Kopieer link voor de opdracht"}
+          </button>
         </div>
       ) : (
         <div className="flex flex-wrap gap-2">
@@ -74,27 +69,25 @@ export function VoiceShortcut({ hasKey, url }: { hasKey: boolean; url: string })
       <details className="text-sm">
         <summary className="cursor-pointer py-1 font-medium text-accent">Zo maak je de opdracht op je iPhone</summary>
         <ol className="mt-2 list-decimal space-y-2 pl-5 text-ink">
-          <li>Maak hierboven je sleutel en houd dit scherm open.</li>
           <li>
-            Open de app <strong>Opdrachten</strong> → tik op <strong>+</strong>. Noem de opdracht <strong>Boodschappen</strong>.
+            Maak hierboven je sleutel en tik op <strong>Kopieer link voor de opdracht</strong>.
           </li>
           <li>
-            Voeg de taak <strong>Dicteer tekst</strong> toe. Zet de taal op <strong>Nederlands</strong>.
+            Open de app <strong>Opdrachten</strong> en maak een nieuwe opdracht (de <strong>+</strong> rechtsboven). Tik bovenaan op de naam en noem hem <strong>Boodschappen</strong>.
           </li>
           <li>
-            Voeg <strong>Haal inhoud op van URL</strong> toe. Plak bij URL het adres (<em>Kopieer adres</em>). Tik op het pijltje (Toon meer):
-            <ul className="mt-1 list-disc space-y-1 pl-5">
-              <li>Methode: <strong>POST</strong></li>
-              <li>
-                Headers → <strong>Voeg nieuwe header toe</strong>: sleutel <code>Authorization</code>, waarde: plak <em>Kopieer sleutel</em> (begint met <code>Bearer</code>)
-              </li>
-              <li>
-                Hoofdtekst verzoek: <strong>JSON</strong> → <strong>Voeg nieuw veld toe</strong> → Tekst: sleutel <code>tekst</code>, waarde: kies de variabele <strong>Gedicteerde tekst</strong>
-              </li>
-            </ul>
+            Zoek onderin bij <em>Zoek naar taken</em> naar <strong>Dicteer tekst</strong> en tik erop. Tik in die taak op het pijltje en zet
+            <strong> Stop met luisteren</strong> op <strong>Na tik</strong> (anders stopt hij bij de eerste pauze). Taal: <strong>Nederlands</strong>.
           </li>
           <li>
-            Voeg <strong>Toon melding</strong> toe en kies als tekst <strong>Inhoud van URL</strong>.
+            Zoek <strong>Haal inhoud op van URL</strong> en tik erop. Tik op het blauwe woord <em>URL</em>, plak de link en zet de cursor helemaal achteraan
+            (na <code>tekst=</code>). Kies dan boven het toetsenbord de variabele <strong>Gedicteerde tekst</strong>. Verder niets instellen.
+          </li>
+          <li>
+            Zoek <strong>Toon melding</strong> en tik erop. Tik op de tekst en kies de variabele <strong>Inhoud van URL</strong>.
+          </li>
+          <li>
+            Tik op <strong>▶︎</strong> om te testen: spreek in, tik op het scherm als je klaar bent, en je krijgt een melding met wat er op de lijst staat.
           </li>
           <li>
             <strong>Widget:</strong> houd je beginscherm ingedrukt → <strong>Wijzig</strong> → <strong>Voeg widget toe</strong> → Opdrachten → kies Boodschappen.

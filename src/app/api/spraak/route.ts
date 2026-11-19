@@ -34,7 +34,18 @@ export async function POST(req: Request) {
     return text("Ik kon niet lezen wat je zei.", 400);
   }
   const auth = req.headers.get("authorization")?.replace(/^Bearer\s+/i, "").trim();
-  const person = await personForKey(auth || req.headers.get("x-sleutel") || bodyKey);
+  const q = new URL(req.url).searchParams;
+  return handle(auth || req.headers.get("x-sleutel") || bodyKey || q.get("sleutel"), said || q.get("tekst") || "");
+}
+
+/** Eenvoudigste opdracht: alleen een link, https://…/api/spraak?sleutel=…&tekst=<Gedicteerde tekst> */
+export async function GET(req: Request) {
+  const q = new URL(req.url).searchParams;
+  return handle(q.get("sleutel"), q.get("tekst") ?? q.get("text") ?? "");
+}
+
+async function handle(key: string | null | undefined, said: string) {
+  const person = await personForKey(key);
   if (!person) return text("Onbekende sleutel. Maak een nieuwe in de app onder Beheer → Inspreken met Siri.", 401);
 
   said = said.trim().slice(0, 1000);
