@@ -6,6 +6,8 @@ import { ACCESS_COOKIE, verifyAccessToken } from "@/lib/access";
 export async function middleware(req: NextRequest) {
   const path = req.nextUrl.pathname;
   if (path.startsWith("/api/cron/")) return NextResponse.next();
+  // Inspreken via Siri / widget: eigen sleutel per persoon, geen cookies.
+  if (path === "/api/spraak") return NextResponse.next();
 
   const hasAccess = await verifyAccessToken(req.cookies.get(ACCESS_COOKIE)?.value);
   if (!hasAccess) {

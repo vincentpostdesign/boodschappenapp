@@ -1,4 +1,7 @@
 import Link from "next/link";
+import { headers } from "next/headers";
+import { hasKey } from "@/lib/voice-keys";
+import { VoiceShortcut } from "@/components/beheer/VoiceShortcut";
 import { db } from "@/lib/db";
 import { PEOPLE, requirePerson } from "@/lib/session";
 import { longDate, todayNL } from "@/lib/dates";
@@ -18,12 +21,16 @@ export const metadata = { title: "Beheer · Boodschappen" };
 export default async function BeheerPage() {
   const me = await requirePerson();
   const today = todayNL();
-  const [schedule, stores, codes, giftCount] = await Promise.all([
+  const [schedule, stores, codes, giftCount, voiceKey, hdrs] = await Promise.all([
     getWeekSchedule(),
     getStores(),
     codeStatus(),
     db().from("gifts").select("id", { count: "exact", head: true }).eq("bought", false).or(`secret.eq.false,added_by.eq.${me}`),
+    hasKey(me),
+    headers(),
   ]);
+  const host = hdrs.get("x-forwarded-host") ?? hdrs.get("host") ?? "boodschappenapp-kappa.vercel.app";
+  const voiceUrl = `${hdrs.get("x-forwarded-proto") ?? "https"}://${host}/api/spraak`;
 
   return (
     <div className="space-y-7">
@@ -60,6 +67,13 @@ export default async function BeheerPage() {
           <NavRow href="/watchlist" Icon={IconEye} title="Watchlist" sub="Aanbiedingen in de gaten houden" />
           <NavRow href="/dashboard" Icon={IconChart} title="Dashboard" sub="Wat kopen we, wat geven we uit" />
         </ul>
+      </section>
+
+      <section id="siri" aria-labelledby="siri-kop" className="scroll-mt-4 space-y-2">
+        <h2 id="siri-kop" className="px-1 text-xs font-bold uppercase tracking-wider text-muted">
+          Inspreken met Siri of widget
+        </h2>
+        <VoiceShortcut hasKey={voiceKey} url={voiceUrl} />
       </section>
 
       <section aria-label="Mijn profiel" className="space-y-2">
